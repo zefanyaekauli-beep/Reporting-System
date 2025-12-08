@@ -44,7 +44,44 @@ if not defined IP set "IP=192.168.0.160"
 REM Start Backend
 echo [*] Starting Backend...
 cd backend
-start "Verolux Backend" cmd /c "python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+
+REM Check if virtual environment exists
+if not exist "venv" (
+    echo [*] Virtual environment not found. Creating...
+    python -m venv venv
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to create virtual environment
+        echo         Make sure Python is installed: python --version
+        cd ..
+        pause
+        exit /b 1
+    )
+    echo [*] Installing dependencies...
+    call venv\Scripts\activate.bat
+    venv\Scripts\pip.exe install -r requirements.txt
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to install dependencies
+        cd ..
+        pause
+        exit /b 1
+    )
+    echo [OK] Virtual environment created and dependencies installed
+) else (
+    echo [*] Virtual environment found
+)
+
+REM Check if venv Python exists
+if not exist "venv\Scripts\python.exe" (
+    echo [ERROR] Virtual environment Python not found
+    echo         Recreate venv: rmdir /s /q venv ^&^& python -m venv venv
+    cd ..
+    pause
+    exit /b 1
+)
+
+REM Start backend with activated venv
+echo [*] Starting backend server...
+start "Verolux Backend" cmd /k "cd /d %~dp0backend && venv\Scripts\activate.bat && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 cd ..
 timeout /t 3 /nobreak >nul
 
@@ -54,7 +91,7 @@ if %errorlevel% equ 0 (
     echo [OK] Backend started on port 8000
 ) else (
     echo [ERROR] Backend failed to start
-    echo Check if Python is installed and virtual environment is activated
+    echo Check backend window for error messages
     pause
     exit /b 1
 )

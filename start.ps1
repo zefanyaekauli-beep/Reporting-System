@@ -50,7 +50,45 @@ if (-not $IP) {
 # Start Backend
 Write-Host "[*] Starting Backend..." -ForegroundColor Yellow
 Set-Location "$ScriptDir\backend"
-Start-Process -NoNewWindow -FilePath "python" -ArgumentList "-m", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000" -WindowStyle Hidden
+
+# Check if virtual environment exists
+if (-not (Test-Path "venv")) {
+    Write-Host "[*] Virtual environment not found. Creating..." -ForegroundColor Yellow
+    python -m venv venv
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Failed to create virtual environment" -ForegroundColor Red
+        Write-Host "        Make sure Python is installed: python --version"
+        Set-Location $ScriptDir
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+    Write-Host "[*] Installing dependencies..." -ForegroundColor Yellow
+    & "venv\Scripts\Activate.ps1"
+    & "venv\Scripts\pip.exe" install -r requirements.txt
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Failed to install dependencies" -ForegroundColor Red
+        Set-Location $ScriptDir
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+    Write-Host "[OK] Virtual environment created and dependencies installed" -ForegroundColor Green
+} else {
+    Write-Host "[*] Virtual environment found" -ForegroundColor Green
+}
+
+# Check if venv Python exists
+$venvPython = "$ScriptDir\backend\venv\Scripts\python.exe"
+if (-not (Test-Path $venvPython)) {
+    Write-Host "[ERROR] Virtual environment Python not found" -ForegroundColor Red
+    Write-Host "        Recreate venv: Remove-Item -Recurse -Force venv; python -m venv venv"
+    Set-Location $ScriptDir
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+# Start backend with activated venv
+Write-Host "[*] Starting backend server..." -ForegroundColor Yellow
+Start-Process -NoNewWindow -FilePath $venvPython -ArgumentList "-m", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000" -WindowStyle Hidden
 Set-Location $ScriptDir
 Start-Sleep -Seconds 3
 
@@ -60,7 +98,8 @@ if ($backendRunning) {
     Write-Host "[OK] Backend started on port 8000" -ForegroundColor Green
 } else {
     Write-Host "[ERROR] Backend failed to start" -ForegroundColor Red
-    Write-Host "Check if Python is installed and virtual environment is activated"
+    Write-Host "Check if virtual environment is properly set up"
+    Write-Host "Try: cd backend && python -m venv venv && venv\Scripts\pip.exe install -r requirements.txt"
     Read-Host "Press Enter to exit"
     exit 1
 }

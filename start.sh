@@ -42,7 +42,42 @@ echo ""
 # Start Backend
 echo -e "${YELLOW}🔧 Starting Backend...${NC}"
 cd backend
-python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > /tmp/verolux_backend.log 2>&1 &
+
+# Check if virtual environment exists
+if [ ! -d "venv" ]; then
+    echo -e "${YELLOW}📦 Virtual environment not found. Creating...${NC}"
+    python3 -m venv venv
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Failed to create virtual environment${NC}"
+        echo "Make sure Python 3 is installed: python3 --version"
+        cd ..
+        exit 1
+    fi
+    echo -e "${YELLOW}📥 Installing dependencies...${NC}"
+    source venv/bin/activate
+    pip install -r requirements.txt
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Failed to install dependencies${NC}"
+        cd ..
+        exit 1
+    fi
+    echo -e "${GREEN}✅ Virtual environment created and dependencies installed${NC}"
+else
+    echo -e "${GREEN}✅ Virtual environment found${NC}"
+    source venv/bin/activate
+fi
+
+# Check if venv Python exists
+if [ ! -f "venv/bin/python" ]; then
+    echo -e "${RED}❌ Virtual environment Python not found${NC}"
+    echo "Recreate venv: rm -rf venv && python3 -m venv venv"
+    cd ..
+    exit 1
+fi
+
+# Start backend with activated venv
+echo -e "${YELLOW}🚀 Starting backend server...${NC}"
+venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > /tmp/verolux_backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 sleep 3
