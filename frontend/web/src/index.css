@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* Verolux Theme - White & Blue */
+html {
+  color-scheme: light;
+  background-color: #FFFFF0;
+}
+
+body {
+  @apply antialiased;
+  background-color: #FFFFF0;
+}
+
+/* Smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Remove any legacy border styles that conflict with Tailwind */
+/* Tailwind handles all border classes */

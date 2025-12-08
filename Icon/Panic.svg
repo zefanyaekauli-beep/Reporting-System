@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 841.89 595.28">
+  <!-- Generator: Adobe Illustrator 29.7.1, SVG Export Plug-In . SVG Version: 2.1.1 Build 8)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #f7f5f5;
+      }
+
+      .st0, .st1 {
+        mix-blend-mode: soft-light;
+      }
+
+      .st2 {
+        fill: #d5b029;
+      }
+
+      .st3 {
+        fill: #0a2c4b;
+      }
+
+      .st4 {
+        isolation: isolate;
+      }
+
+      .st5 {
+        fill: #0c2c4b;
+      }
+
+      .st6 {
+        fill: #ee2e24;
+      }
+
+      .st7, .st8 {
+        fill: #fcd01a;
+      }
+
+      .st1 {
+        fill: url(#linear-gradient);
+      }
+
+      .st8 {
+        stroke: #fcd01a;
+        stroke-miterlimit: 10;
+        stroke-width: 2px;
+      }
+    </style>
+    <linearGradient id="linear-gradient" x1="421.26" y1="275.31" x2="421.26" y2="392.73" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".1" stop-color="#f9f8f9"/>
+      <stop offset=".23" stop-color="#e8e7e9"/>
+      <stop offset=".38" stop-color="#cdcbce"/>
+      <stop offset=".54" stop-color="#a7a4a9"/>
+      <stop offset=".71" stop-color="#777279"/>
+      <stop offset=".89" stop-color="#3d353f"/>
+      <stop offset="1" stop-color="#180f1b"/>
+    </linearGradient>
+  </defs>
+  <g class="st4">
+    <g id="Layer_1">
+      <circle class="st3" cx="420.94" cy="297.64" r="219.12"/>
+      <path class="st5" d="M423.22,334.13h-4.55c-2.6,0-4.78-1.95-5.06-4.53l-6.9-62.8c-.33-3.01,2.03-5.65,5.06-5.65h18.36c3.03,0,5.39,2.63,5.06,5.65l-6.9,62.8c-.28,2.58-2.46,4.53-5.06,4.53Z"/>
+      <circle class="st5" cx="420.94" cy="297.64" r="6.14"/>
+      <path class="st6" d="M471.2,214.18c-1.31-10.33-10.09-18.07-20.51-18.07h-57.73c-10.41,0-19.2,7.74-20.5,18.07l-16.77,132.55s31.08,7.37,64.49,7.37,67.79-7.37,67.79-7.37l-16.77-132.55Z"/>
+      <path class="st1" d="M362.55,350.04l18.49-131.87c1.42-10.11,9.6-17.59,19.24-17.59h43.51c9.73,0,17.96,7.62,19.27,17.84l16.9,131.62-19.2-.9-10.67-133.31c-.48-5.85-5.1-10.34-10.64-10.34h-34.68c-5.53,0-10.14,4.47-10.64,10.3l-11.11,133.35-20.48.9Z"/>
+      <rect class="st7" x="348.21" y="344.97" width="145.47" height="54.2" rx="2.85" ry="2.85"/>
+      <g>
+        <rect class="st2" x="355.68" y="344.97" width="27.96" height="54.2"/>
+        <rect class="st2" x="460" y="344.97" width="27.96" height="54.2"/>
+      </g>
+      <ellipse class="st0" cx="421.22" cy="307.96" rx="25.64" ry="37.01"/>
+      <path class="st8" d="M420.94,123.84c-95.98,0-173.79,77.81-173.79,173.79s77.81,173.79,173.79,173.79,173.79-77.81,173.79-173.79-77.81-173.79-173.79-173.79ZM420.94,468.7c-94.47,0-171.06-76.59-171.06-171.06s76.59-171.06,171.06-171.06,171.06,76.59,171.06,171.06-76.59,171.06-171.06,171.06Z"/>
+    </g>
+  </g>
+</svg>
