@@ -1,0 +1,87 @@
+═══════════════════════════════════════════════════════════════
+  URGENT FIX: Mixed Content Warning
+═══════════════════════════════════════════════════════════════
+
+The error shows frontend is still trying to access:
+  http://192.168.0.160:8000/api/auth/login
+
+This means the API client is using absolute HTTP URL instead of relative path.
+
+═══════════════════════════════════════════════════════════════
+  STEP 1: Fix vite.config.ts
+═══════════════════════════════════════════════════════════════
+
+File: frontend/web/vite.config.ts
+
+Find the server section and ADD proxy config:
+
+  server: {
+    port: 5173,
+    host: '0.0.0.0',
+    strictPort: false,
+    ...(hasCerts && {
+      https: {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+      },
+    }),
+    // ⬇️ ADD THIS BLOCK ⬇️
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+    // ⬆️ END OF ADDITION ⬆️
+  },
+
+═══════════════════════════════════════════════════════════════
+  STEP 2: Fix client.ts (CRITICAL!)
+═══════════════════════════════════════════════════════════════
+
+File: frontend/web/src/api/client.ts
+
+Find the getApiBaseURL() function. It probably looks like:
+
+  const getApiBaseURL = () => {
+    if (import.meta.env.VITE_API_BASE_URL) {
+      return import.meta.env.VITE_API_BASE_URL;
+    }
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:8000/api";
+    } else {
+      return `http://${hostname}:8000/api`;  // ⬅️ THIS IS THE PROBLEM!
+    }
+  };
+
+REPLACE IT WITH:
+
+  const getApiBaseURL = () => {
+    if (import.meta.env.VITE_API_BASE_URL) {
+      return import.meta.env.VITE_API_BASE_URL;
+    }
+    // Use relative path - Vite proxy handles it
+    return "/api";  // ⬅️ THIS FIXES IT!
+  };
+
+═══════════════════════════════════════════════════════════════
+  STEP 3: Restart
+═══════════════════════════════════════════════════════════════
+
+1. Stop: ./stop.sh
+2. Start: ./start.sh
+3. Hard refresh browser: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Win)
+
+═══════════════════════════════════════════════════════════════
+  VERIFICATION
+═══════════════════════════════════════════════════════════════
+
+After restart, check browser console:
+- Mixed content warning should be GONE
+- API calls should go to: https://localhost:5173/api/...
+- Not: http://192.168.0.160:8000/api/...
+
+═══════════════════════════════════════════════════════════════
+
