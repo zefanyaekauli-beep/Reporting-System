@@ -1,12 +1,14 @@
 {
   "name": "verolux-management-frontend",
+  "version": "1.0.0",
+  "description": "Verolux Management System - Frontend for Security, Cleaning, and Parking divisions",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -29,5 +31,9 @@
     "tailwindcss": "^4.1.17",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }
