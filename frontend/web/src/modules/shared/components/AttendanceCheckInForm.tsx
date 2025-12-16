@@ -1,6 +1,6 @@
 // frontend/web/src/modules/shared/components/AttendanceCheckInForm.tsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "./Card";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { useToast } from "./Toast";
@@ -8,6 +8,7 @@ import { useSite } from "../contexts/SiteContext";
 import { useAuthStore } from "../../../stores/authStore";
 import { checkIn, CheckInRequest } from "../../../api/attendanceApi";
 import { theme } from "./theme";
+import { useNavigate } from "react-router-dom";
 
 interface AttendanceCheckInFormProps {
   roleType: "SECURITY" | "CLEANING" | "DRIVER";
@@ -29,6 +30,12 @@ export function AttendanceCheckInForm({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+const [showCamera, setShowCamera] = useState(false);
+  const navigate = useNavigate();
+
 
   function getLocation() {
     if (!navigator.geolocation) {
@@ -57,6 +64,14 @@ export function AttendanceCheckInForm({
       }
     );
   }
+  function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((track) => track.stop());
+    setCameraStream(null);
+  }
+  setShowCamera(false);
+}
+
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -118,6 +133,8 @@ export function AttendanceCheckInForm({
       if (onSuccess) {
         onSuccess(result.attendance_id);
       }
+      stopCamera();
+      navigate("/security/passdown");
     } catch (error: any) {
       console.error("Check-in error:", error);
       showToast(

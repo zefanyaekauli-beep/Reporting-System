@@ -18,9 +18,10 @@ def find_template_for_user(
     user: Union[User, dict],
     site_id: int,
     shift_type: Optional[str] = None,
+    division: str = "SECURITY",
 ) -> Optional[ChecklistTemplate]:
     """
-    Find checklist template matching user's site, role, and shift type.
+    Find checklist template matching user's site, role, shift type, and division.
     Priority: site-specific > global (site_id=None)
     """
     if isinstance(user, dict):
@@ -36,6 +37,7 @@ def find_template_for_user(
         .filter(
             ChecklistTemplate.company_id == company_id,
             ChecklistTemplate.is_active == True,
+            ChecklistTemplate.division == division,
             ChecklistTemplate.site_id == site_id,
         )
     )
@@ -60,6 +62,7 @@ def find_template_for_user(
             .filter(
                 ChecklistTemplate.company_id == company_id,
                 ChecklistTemplate.is_active == True,
+                ChecklistTemplate.division == division,
                 ChecklistTemplate.site_id.is_(None),
             )
         )
@@ -85,8 +88,9 @@ def create_checklist_for_attendance(
     db: Session,
     user: Union[User, dict],
     site_id: int,
-    attendance_id: int,
+    attendance_id: Optional[int] = None,
     shift_type: Optional[str] = None,
+    division: str = "SECURITY",
 ) -> Optional[Checklist]:
     """
     Create checklist instance from template for attendance.
@@ -100,7 +104,7 @@ def create_checklist_for_attendance(
         company_id = user.company_id
         user_id = user.id
 
-    # Avoid duplicate checklist for same user/date/site
+    # Avoid duplicate checklist for same user/date/site/division
     existing = (
         db.query(Checklist)
         .filter(
@@ -108,6 +112,7 @@ def create_checklist_for_attendance(
             Checklist.user_id == user_id,
             Checklist.site_id == site_id,
             Checklist.shift_date == today,
+            Checklist.division == division,
         )
         .first()
     )
@@ -115,10 +120,17 @@ def create_checklist_for_attendance(
     if existing:
         return existing
 
-    template = find_template_for_user(db, user, site_id, shift_type)
+    template = find_template_for_user(db, user, site_id, shift_type, division=division)
 
     if not template:
         # No template; nothing to create
+        # Log for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"No checklist template found for user {user_id}, site {site_id}, "
+            f"shift_type {shift_type}, division {division}"
+        )
         return None
 
     checklist = Checklist(
@@ -127,6 +139,7 @@ def create_checklist_for_attendance(
         site_id=site_id,
         attendance_id=attendance_id,
         template_id=template.id,
+        division=division,  # Use provided division
         shift_date=today,
         shift_type=shift_type,
         status=ChecklistStatus.OPEN,

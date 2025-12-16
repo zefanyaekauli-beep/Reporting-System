@@ -7,25 +7,14 @@ import { theme } from "../../shared/components/theme";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { useToast } from "../../shared/components/Toast";
 import { useSite } from "../../shared/contexts/SiteContext";
-import api from "../../../api/client";
+import {
+  getTodayChecklist,
+  completeChecklistItem,
+  createChecklistManually,
+  Checklist,
+  ChecklistItem,
+} from "../../../api/cleaningApi";
 import { usePullToRefresh } from "../../shared/hooks/usePullToRefresh";
-
-interface Checklist {
-  id: number;
-  status: "PENDING" | "COMPLETED" | "INCOMPLETE";
-  items: ChecklistItem[];
-}
-
-interface ChecklistItem {
-  id: number;
-  title: string;
-  description?: string;
-  status: "PENDING" | "COMPLETED" | "NOT_APPLICABLE" | "FAILED";
-  required: boolean;
-  note?: string;
-  completed_at?: string;
-  _tempNote?: string;
-}
 
 export function CleaningChecklistPage() {
   const { t } = useTranslation();
@@ -37,25 +26,38 @@ export function CleaningChecklistPage() {
   const [checklist, setChecklist] = useState<Checklist | null>(null);
   const [loading, setLoading] = useState(true);
   const [completingItemId, setCompletingItemId] = useState<number | null>(null);
+  const [creatingChecklist, setCreatingChecklist] = useState(false);
 
   const loadChecklist = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/cleaning/checklist/today");
-      setChecklist(res.data);
+      const { data } = await getTodayChecklist();
+      setChecklist(data);
     } catch (err: any) {
-      console.error("Failed to load checklist:", err);
       if (err?.response?.status === 404) {
-        setChecklist(null);
+        // 404 is expected when no checklist exists - don't log as error
+        setChecklist(null); // No checklist for today
       } else {
-        showToast("Gagal memuat checklist", "error");
+        console.error("Failed to load checklist:", err);
+        let errorMsg = "Gagal memuat checklist";
+        if (err?.response?.data?.detail) {
+          const detail = err.response.data.detail;
+          if (Array.isArray(detail)) {
+            errorMsg = detail.map((e: any) => e.msg || e.message || String(e)).join(", ");
+          } else if (typeof detail === "string") {
+            errorMsg = detail;
+          } else if (typeof detail === "object") {
+            errorMsg = detail.message || detail.msg || JSON.stringify(detail);
+          }
+        }
+        showToast(errorMsg, "error");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const { containerRef, isRefreshing } = usePullToRefresh(loadChecklist);
+  const { isRefreshing } = usePullToRefresh({ onRefresh: loadChecklist });
 
   useEffect(() => {
     loadChecklist();
@@ -69,7 +71,7 @@ export function CleaningChecklistPage() {
 
     setCompletingItemId(item.id);
     try {
-      const response = await api.patch(`/cleaning/checklist/${checklist.id}/items/${item.id}/complete`, {
+      const response = await completeChecklistItem(checklist.id, item.id, {
         status,
         note: item._tempNote || undefined,
       });
@@ -82,10 +84,21 @@ export function CleaningChecklistPage() {
           : "Tugas ditandai gagal",
         "success"
       );
-      await loadChecklist();
+      await loadChecklist(); // Reload to get updated status
     } catch (err: any) {
       console.error("Failed to complete item:", err);
-      showToast("Gagal memperbarui tugas", "error");
+      let errorMsg = "Gagal memperbarui tugas";
+      if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (Array.isArray(detail)) {
+          errorMsg = detail.map((e: any) => e.msg || e.message || String(e)).join(", ");
+        } else if (typeof detail === "string") {
+          errorMsg = detail;
+        } else if (typeof detail === "object") {
+          errorMsg = detail.message || detail.msg || JSON.stringify(detail);
+        }
+      }
+      showToast(errorMsg, "error");
     } finally {
       setCompletingItemId(null);
     }
@@ -107,7 +120,37 @@ export function CleaningChecklistPage() {
     );
   }
 
-  if (!checklist) {
+  const handleCreateChecklist = async () => {
+    setCreatingChecklist(true);
+    try {
+      const { data } = await createChecklistManually(siteId);
+      setChecklist(data);
+      showToast("Checklist berhasil dibuat", "success");
+    } catch (err: any) {
+      console.error("Failed to create checklist:", err);
+      let errorMsg = "Gagal membuat checklist";
+      if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        // Handle array of validation errors
+        if (Array.isArray(detail)) {
+          errorMsg = detail.map((e: any) => e.msg || e.message || String(e)).join(", ");
+        } else if (typeof detail === "string") {
+          errorMsg = detail;
+        } else if (typeof detail === "object") {
+          errorMsg = detail.message || detail.msg || JSON.stringify(detail);
+        } else {
+          errorMsg = String(detail);
+        }
+      } else if (err?.message) {
+        errorMsg = err.message;
+      }
+      showToast(errorMsg, "error");
+    } finally {
+      setCreatingChecklist(false);
+    }
+  };
+
+  if (!checklist && !loading) {
     return (
       <MobileLayout title="Checklist Pembersihan Hari Ini">
         <div
@@ -121,31 +164,56 @@ export function CleaningChecklistPage() {
           <div style={{ marginBottom: 8, fontWeight: 600 }}>
             Belum ada checklist
           </div>
-          <div style={{ fontSize: 13, color: theme.colors.textSoft }}>
-            Checklist akan dibuat otomatis saat check-in
+          <div style={{ fontSize: 13, color: theme.colors.textSoft, marginBottom: 16 }}>
+            Checklist akan dibuat otomatis saat check-in, atau Anda bisa membuatnya manual
           </div>
-          <button
-            onClick={() => navigate("/cleaning/attendance")}
-            style={{
-              marginTop: 16,
-              padding: "10px 20px",
-              backgroundColor: theme.colors.primary,
-              color: "#FFFFFF",
-              border: "none",
-              borderRadius: theme.radius.card,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Ke Halaman Absensi
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <button
+              onClick={handleCreateChecklist}
+              disabled={creatingChecklist}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: creatingChecklist ? theme.colors.border : theme.colors.primary,
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: theme.radius.card,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: creatingChecklist ? "not-allowed" : "pointer",
+                opacity: creatingChecklist ? 0.6 : 1,
+              }}
+            >
+              {creatingChecklist ? "Membuat..." : "Buat Checklist Manual"}
+            </button>
+            <button
+              onClick={() => navigate("/cleaning/attendance")} 
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "transparent",
+                color: theme.colors.primary,
+                border: `1px solid ${theme.colors.primary}`,
+                borderRadius: theme.radius.card,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Ke Halaman Absensi
+            </button>
+          </div>
         </div>
       </MobileLayout>
     );
   }
 
-  const requiredItems = checklist.items.filter((i) => i.required === true);
+  if (!checklist) {
+    return null; // This should not happen due to earlier check, but TypeScript needs it
+  }
+
+  const requiredItems = checklist.items.filter((i) => {
+    const req = i.required;
+    return req === true || String(req) === "true" || String(req) === "1";
+  });
   const completedRequired = requiredItems.filter(
     (i) => i.status === "COMPLETED"
   );
@@ -158,7 +226,7 @@ export function CleaningChecklistPage() {
   return (
     <MobileLayout title="Checklist Pembersihan Hari Ini">
       <div
-        ref={containerRef}
+        data-pull-refresh
         style={{
           position: "relative",
           minHeight: "100%",
@@ -321,7 +389,7 @@ export function CleaningChecklistPage() {
               const isNotApplicable = item.status === "NOT_APPLICABLE";
               const isFailed = item.status === "FAILED";
               const isPending = item.status === "PENDING";
-              const isRequired = item.required === true;
+              const isRequired = item.required === true || String(item.required) === "true" || String(item.required) === "1";
               const isCompleting = completingItemId === item.id;
 
               return (
@@ -589,4 +657,3 @@ export function CleaningChecklistPage() {
     </MobileLayout>
   );
 }
-

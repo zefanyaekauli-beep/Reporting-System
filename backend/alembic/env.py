@@ -17,6 +17,9 @@ from app.models.base import Base
 # Import all models to register them with Base
 from app.models import user, company, site, attendance  # noqa: F401
 from app.models import announcement  # noqa: F401
+from app.models import inspect_point, attendance_correction, shift, leave_request, device  # noqa: F401
+from app.models import cctv, employee, master_data, patrol_target, patrol_team, visitor  # noqa: F401
+from app.models import training, document, sync_queue, payroll, gps_track  # noqa: F401
 from app.divisions.security import models as security_models  # noqa: F401
 from app.divisions.cleaning import models as cleaning_models  # noqa: F401
 from app.divisions.driver import models as driver_models  # noqa: F401
@@ -76,8 +79,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Enable batch mode for SQLite (handles ALTER TABLE limitations)
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, 
+            target_metadata=target_metadata,
+            render_as_batch=True  # Enable batch mode for SQLite
         )
 
         with context.begin_transaction():

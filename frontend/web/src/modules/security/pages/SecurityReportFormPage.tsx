@@ -23,7 +23,7 @@ export function SecurityReportFormPage() {
   const { selectedSite, sites } = useSite();
 
   const [site, setSite] = useState(selectedSite ? String(selectedSite.id) : "");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState("incident"); // Default to incident
   const [severity, setSeverity] = useState<Severity>("medium");
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
@@ -52,22 +52,98 @@ export function SecurityReportFormPage() {
     setError(null);
 
     try {
-      await createSecurityReport({
-        report_type: category || "incident",
-        site_id: Number(site),
-        location_text: location || undefined,
-        title,
-        description: description || undefined,
-        severity: severity || undefined,
-        evidenceFiles: photos.map((p) => p.file),
+      // Ensure site_id is a valid number
+      const siteId = Number(site);
+      if (isNaN(siteId) || siteId <= 0) {
+        throw new Error("Site harus dipilih");
+      }
+
+      // Ensure report_type is not empty
+      const reportType = category || "incident";
+      if (!reportType || !reportType.trim()) {
+        throw new Error("Tipe laporan harus dipilih");
+      }
+
+      // Ensure title is not empty
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) {
+        throw new Error("Judul laporan harus diisi");
+      }
+
+      // Create payload - only include evidenceFiles if there are any
+      const payload = {
+        report_type: reportType.trim(),
+        site_id: siteId,
+        title: trimmedTitle,
+        ...(location && location.trim() && { location_text: location.trim() }),
+        ...(description && description.trim() && { description: description.trim() }),
+        ...(severity && severity.trim() && { severity: severity.trim() }),
+        // Only include evidenceFiles if there are photos
+        ...(photos.length > 0 && { evidenceFiles: photos.map((p) => p.file).filter(Boolean) }),
+      };
+
+      // Debug: log payload (without files)
+      console.log("Creating security report with payload:", {
+        ...payload,
+        evidenceFiles: payload.evidenceFiles ? `${payload.evidenceFiles.length} files` : "none",
       });
+
+      await createSecurityReport(payload);
       showToast("Laporan berhasil dibuat", "success");
       navigate("/security/dashboard");
     } catch (err: any) {
       console.error("Failed to create report:", err);
-      const errorMsg = err?.response?.data?.detail || err?.message || "Gagal menyimpan laporan";
-      setError(errorMsg);
-      showToast(errorMsg, "error");
+      
+      // Better error handling - show validation errors if available
+      let errorMsg: string = "Gagal menyimpan laporan";
+      
+      try {
+        if (err?.response?.data?.detail) {
+          const detail = err.response.data.detail;
+          
+          if (Array.isArray(detail)) {
+            // Validation errors from FastAPI (422 errors)
+            const errorMessages: string[] = [];
+            detail.forEach((e: any) => {
+              try {
+                // Get field name from location array (last element)
+                const field = Array.isArray(e.loc) ? e.loc[e.loc.length - 1] : 'unknown';
+                // Get error message
+                const msg = typeof e.msg === 'string' ? e.msg : 'Invalid value';
+                // Format field name nicely
+                const fieldName = String(field).replace(/_/g, ' ');
+                errorMessages.push(`${fieldName}: ${msg}`);
+              } catch (parseErr) {
+                // If we can't parse this error, skip it
+                console.warn("Error parsing validation error:", parseErr);
+              }
+            });
+            errorMsg = errorMessages.length > 0 
+              ? errorMessages.join('; ') 
+              : "Terjadi kesalahan validasi";
+          } else if (typeof detail === 'string') {
+            errorMsg = detail;
+          } else {
+            // If detail is an object, try to stringify it
+            try {
+              errorMsg = JSON.stringify(detail);
+            } catch {
+              errorMsg = "Terjadi kesalahan validasi";
+            }
+          }
+        } else if (err?.message && typeof err.message === 'string') {
+          errorMsg = err.message;
+        }
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError);
+        errorMsg = "Terjadi kesalahan saat memproses error";
+      }
+      
+      // Ensure errorMsg is always a string
+      const finalErrorMsg = String(errorMsg || "Gagal menyimpan laporan");
+      setError(finalErrorMsg);
+      showToast(finalErrorMsg, "error");
+    } finally {
       setSubmitting(false);
     }
   };
@@ -254,7 +330,7 @@ export function SecurityReportFormPage() {
               color: theme.colors.danger,
             }}
           >
-            {error}
+            {typeof error === 'string' ? error : String(error || 'Terjadi kesalahan')}
           </div>
         )}
 
@@ -291,6 +367,7 @@ export function SecurityReportFormPage() {
               fontSize: 13,
               fontWeight: 600,
               opacity: submitting || !title.trim() ? 0.8 : 1,
+              cursor: submitting || !title.trim() || !site ? "not-allowed" : "pointer",
             }}
           >
             {submitting ? t("security.saving") : t("common.save")}

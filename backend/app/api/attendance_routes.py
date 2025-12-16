@@ -310,12 +310,10 @@ async def scan_qr_attendance(
     current_user=Depends(get_current_user),
 ):
     """
-    Scan QR code untuk attendance.
-    Otomatis memutuskan clock-in atau clock-out berdasarkan:
-    - Jika user belum punya attendance IN_PROGRESS untuk site tersebut → CLOCK IN
-    - Jika user sudah punya attendance IN_PROGRESS untuk site tersebut → CLOCK OUT
+    Scan QR code untuk attendance. Otomatis Clock-In atau Clock-Out.
     """
-    # Validasi role_type
+    
+    # 1. Validasi role_type
     role_type_upper = role_type.upper()
     if role_type_upper not in ["SECURITY", "CLEANING", "DRIVER", "PARKING"]:
         raise HTTPException(
@@ -323,7 +321,7 @@ async def scan_qr_attendance(
             detail="Invalid role_type. Must be SECURITY, CLEANING, DRIVER, or PARKING."
         )
     
-    # Cari site berdasarkan QR code
+    # 2. Cari site berdasarkan QR code
     site = (
         db.query(Site)
         .filter(
@@ -341,7 +339,7 @@ async def scan_qr_attendance(
     
     user_id = current_user.get("id")
     
-    # Cek apakah user sudah punya attendance IN_PROGRESS untuk site ini
+    # 3. Cek apakah user sudah punya attendance IN_PROGRESS untuk site ini
     open_attendance = (
         db.query(Attendance)
         .filter(
@@ -356,7 +354,11 @@ async def scan_qr_attendance(
     now = datetime.utcnow()
     
     if open_attendance is None:
-        # CLOCK IN
+        # =========================================================
+        # CLOCK IN LOGIC
+        # =========================================================
+        print(f"ATTENDANCE DEBUG: User {user_id} clocking IN at site {site.id}")
+        
         # Validasi lokasi
         is_valid = True
         if lat is not None and lng is not None:
@@ -394,7 +396,15 @@ async def scan_qr_attendance(
         )
         
         db.add(attendance)
-        db.commit()
+        
+        try:
+            db.commit()
+            print(f"ATTENDANCE DEBUG: CLOCK IN COMMIT SUCCESSFUL. ID: {attendance.id}")
+        except Exception as e:
+            db.rollback()
+            print(f"ATTENDANCE ERROR: CLOCK IN COMMIT FAILED: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database commit failed during clock-in.")
+
         db.refresh(attendance)
         
         return {
@@ -406,7 +416,11 @@ async def scan_qr_attendance(
             "message": f"Clocked IN at {site.name}",
         }
     else:
-        # CLOCK OUT
+        # =========================================================
+        # CLOCK OUT LOGIC
+        # =========================================================
+        print(f"ATTENDANCE DEBUG: User {user_id} clocking OUT for ID {open_attendance.id}")
+        
         # Validasi lokasi
         is_valid = True
         if lat is not None and lng is not None:
@@ -423,9 +437,17 @@ async def scan_qr_attendance(
         open_attendance.checkout_lng = lng
         open_attendance.checkout_accuracy = accuracy
         open_attendance.status = AttendanceStatus.COMPLETED
+        # Pastikan validasi lokasi gabungan
         open_attendance.is_valid_location = open_attendance.is_valid_location and is_valid
         
-        db.commit()
+        try:
+            db.commit()
+            print(f"ATTENDANCE DEBUG: CLOCK OUT COMMIT SUCCESSFUL. ID: {open_attendance.id}")
+        except Exception as e:
+            db.rollback()
+            print(f"ATTENDANCE ERROR: CLOCK OUT COMMIT FAILED: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database commit failed during clock-out.")
+            
         db.refresh(open_attendance)
         
         return {
@@ -437,7 +459,6 @@ async def scan_qr_attendance(
             "is_valid_location": is_valid,
             "message": f"Clocked OUT at {site.name}",
         }
-
 @router.get("/my")
 async def list_my_attendance(
     role_type: str = Query(None),  # Optional filter by role

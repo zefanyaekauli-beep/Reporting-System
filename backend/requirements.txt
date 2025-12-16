@@ -4,13 +4,13 @@ uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 
 # Database
-sqlalchemy==2.0.23
-alembic==1.12.1
-psycopg2-binary==2.9.9
+sqlalchemy>=2.0.36  # Updated for Python 3.13 compatibility
+alembic>=1.13.0  # Updated for Python 3.13 compatibility
+psycopg2-binary>=2.9.10  # Updated for Python 3.13 compatibility
 
 # Data Validation
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic>=2.9.0  # Updated for Python 3.13 compatibility
+pydantic-settings>=2.5.0  # Updated for Python 3.13 compatibility
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
@@ -18,7 +18,7 @@ bcrypt==4.0.1
 passlib[bcrypt]==1.7.4
 
 # File Processing & QR Codes
-Pillow==10.1.0
+Pillow>=11.0.0  # Updated for Python 3.13 compatibility
 qrcode[pil]==7.4.2
 reportlab==4.0.7
 

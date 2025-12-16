@@ -210,12 +210,12 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
-        division=user.division,
+        division=user_division,
         role=user_role,
         user=UserInfo(
             id=user.id,
             username=user.username,
-            division=user.division,
+            division=user_division,
             role=user_role,
             company_id=user.company_id or 1,
             site_id=user.site_id,
@@ -223,13 +223,103 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     )
 
 @router.get("/me")
-def get_me(current_user: dict = Depends(get_current_user)):
-    """Get current user info from JWT token"""
+def get_me(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get current user info from JWT token with permissions"""
+    from app.models.permission import Permission, Role
+    from app.models.user import User
+    from sqlalchemy.orm import joinedload
+    
+    user_id = current_user.get("id")
+    # Eager load role_obj with permissions and user permissions
+    user = (
+        db.query(User)
+        .options(
+            joinedload(User.role_obj).joinedload(Role.permissions),
+            joinedload(User.permissions)
+        )
+        .filter(User.id == user_id)
+        .first()
+    )
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get permissions from role and direct user permissions
+    permissions = []
+    permission_set = set()  # To avoid duplicates
+    
+    try:
+        # Get permissions from role
+        if user.role_obj and user.role_obj.permissions:
+            for perm in user.role_obj.permissions:
+                if perm.is_active:
+                    perm_key = f"{perm.resource}:{perm.action}"
+                    if perm_key not in permission_set:
+                        permissions.append({
+                            "resource": perm.resource,
+                            "action": perm.action,
+                            "id": perm.id,
+                            "name": perm.name
+                        })
+                        permission_set.add(perm_key)
+        
+        # Also get direct user permissions (these override role permissions)
+        if user.permissions:
+            for perm in user.permissions:
+                if perm.is_active:
+                    perm_key = f"{perm.resource}:{perm.action}"
+                    # Remove existing permission with same resource:action if exists
+                    permissions = [p for p in permissions if f"{p['resource']}:{p['action']}" != perm_key]
+                    permissions.append({
+                        "resource": perm.resource,
+                        "action": perm.action,
+                        "id": perm.id,
+                        "name": perm.name
+                    })
+                    permission_set.add(perm_key)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error fetching permissions for user {user_id}: {str(e)}", exc_info=True)
+        # Fallback: get permissions based on role name
+        role_name = current_user.get("role", "").upper()
+        from app.api.admin_routes import get_permissions_for_role
+        perm_names = get_permissions_for_role(role_name)
+        # Convert permission names to resource/action format
+        for perm_name in perm_names:
+            # Simple mapping - can be improved
+            if "REPORTS" in perm_name:
+                resource = "reports"
+                action = "read" if "VIEW" in perm_name else "write"
+            elif "PATROLS" in perm_name:
+                resource = "patrols"
+                action = "read" if "VIEW" in perm_name else "write"
+            elif "ATTENDANCE" in perm_name:
+                resource = "attendance"
+                action = "read" if "VIEW" in perm_name else "write"
+            elif "CHECKLISTS" in perm_name:
+                resource = "checklists"
+                action = "read" if "VIEW" in perm_name else "write"
+            elif "SHIFTS" in perm_name:
+                resource = "shifts"
+                action = "read" if "VIEW" in perm_name else "write"
+            else:
+                continue
+            perm_key = f"{resource}:{action}"
+            if perm_key not in permission_set:
+                permissions.append({
+                    "resource": resource,
+                    "action": action
+                })
+                permission_set.add(perm_key)
+    
     return {
         "id": current_user.get("id"),
         "username": current_user.get("username"),
         "division": current_user.get("division"),
         "role": current_user.get("role"),
+        "role_id": user.role_id,
         "company_id": current_user.get("company_id"),
         "site_id": current_user.get("site_id"),
+        "permissions": permissions,
     }

@@ -13,23 +13,83 @@ export interface CreateSecurityReportPayload {
   evidenceFiles?: File[];
 }
 
+
 export async function createSecurityReport(
   payload: CreateSecurityReportPayload
 ) {
   const formData = new FormData();
 
-  formData.append("report_type", payload.report_type);
-  formData.append("site_id", String(payload.site_id));
+  // Required fields - ensure they are not empty
+  if (!payload.report_type || !payload.report_type.trim()) {
+    throw new Error("Report type is required");
+  }
+  if (!payload.site_id || isNaN(Number(payload.site_id)) || Number(payload.site_id) <= 0) {
+    throw new Error("Site ID is required and must be a valid number");
+  }
+  if (!payload.title || !payload.title.trim()) {
+    throw new Error("Title is required");
+  }
   
-  if (payload.location_id != null) {
+  formData.append("report_type", payload.report_type.trim());
+  formData.append("site_id", String(payload.site_id));
+  formData.append("title", payload.title.trim());
+  
+  // Optional fields - only append if they exist and have values
+  if (payload.location_id != null && payload.location_id > 0) {
     formData.append("location_id", String(payload.location_id));
   }
+  
+  if (payload.location_text && payload.location_text.trim()) {
+    formData.append("location_text", payload.location_text.trim());
+  }
+  
+  if (payload.description && payload.description.trim()) {
+    formData.append("description", payload.description.trim());
+  }
+  
+  if (payload.severity && payload.severity.trim()) {
+    formData.append("severity", payload.severity.trim());
+  }
+  
+  // Handle evidence files - append each file individually
+  // Backend expects: evidence_files as a list
+  if (payload.evidenceFiles && payload.evidenceFiles.length > 0) {
+    payload.evidenceFiles.forEach((file) => {
+      // Use the same field name for all files - FastAPI will collect them as a list
+      formData.append("evidence_files", file);
+    });
+  }
+
+  // Debug logging (remove in production)
+  if (import.meta.env.DEV) {
+    console.log("FormData contents:");
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+      } else {
+        console.log(`${key}: ${value}`);
+      }
+    }
+  }
+
+  // Don't set Content-Type header - let browser/Axios set it automatically with boundary
+  // Setting it manually will break multipart/form-data encoding
+  return api.post("/security/reports", formData);
+}
+
+export async function createSecurityReportAlternative(
+  payload: CreateSecurityReportPayload
+) {
+  const formData = new FormData();
+
+  // Add all non-file fields first
+  formData.append("report_type", payload.report_type);
+  formData.append("site_id", String(payload.site_id));
+  formData.append("title", payload.title);
   
   if (payload.location_text) {
     formData.append("location_text", payload.location_text);
   }
-  
-  formData.append("title", payload.title);
   
   if (payload.description) {
     formData.append("description", payload.description);
@@ -38,11 +98,14 @@ export async function createSecurityReport(
   if (payload.severity) {
     formData.append("severity", payload.severity);
   }
-  
+
+  // If backend expects files as individual named fields
   if (payload.evidenceFiles && payload.evidenceFiles.length > 0) {
-    payload.evidenceFiles.forEach((file) => {
-      formData.append("evidence_files", file);
+    payload.evidenceFiles.forEach((file, index) => {
+      formData.append(`evidence_file_${index}`, file);
     });
+    // Also send the count
+    formData.append("evidence_file_count", String(payload.evidenceFiles.length));
   }
 
   return api.post("/security/reports", formData, {
@@ -50,6 +113,30 @@ export async function createSecurityReport(
       "Content-Type": "multipart/form-data",
     },
   });
+}
+
+export async function testFormDataUpload() {
+  const formData = new FormData();
+  formData.append("test_field", "test_value");
+  formData.append("test_number", "123");
+  
+  // Create a test file
+  const testFile = new Blob(["test content"], { type: "text/plain" });
+  const file = new File([testFile], "test.txt", { type: "text/plain" });
+  formData.append("test_file", file);
+
+  try {
+    const response = await api.post("/debug/test-upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    console.log("Test upload response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Test upload error:", error);
+    throw error;
+  }
 }
 
 export async function getTodayAttendance(siteId: number) {
@@ -180,10 +267,38 @@ export async function createPatrolLog(payload: CreatePatrolLogPayload) {
 
 export async function listPatrolLogs(params?: {
   site_id?: number;
+  limit?: number;
   from_date?: string;
   to_date?: string;
-}) {
-  return api.get("/security/patrols", { params });
+}): Promise<any[]> {
+  const response = await api.get("/security/patrols", { params });
+  // Backend returns array directly, but handle both cases
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  // If response has a data property that's an array
+  if (response.data?.data && Array.isArray(response.data.data)) {
+    return response.data.data;
+  }
+  // If response.data is an object with items or results
+  if (response.data?.items && Array.isArray(response.data.items)) {
+    return response.data.items;
+  }
+  // Default: return empty array if structure is unexpected
+  console.warn("Unexpected response structure from /security/patrols:", response.data);
+  return [];
+}
+
+// Get detailed patrol information
+export async function getPatrolDetail(patrolId: number): Promise<any> {
+  const response = await api.get(`/security/patrols/${patrolId}/detail`);
+  return response.data;
+}
+
+// Get GPS track for a patrol
+export async function getGPSTrack(patrolId: number): Promise<any> {
+  const response = await api.get(`/security/patrols/${patrolId}/gps-track`);
+  return response.data;
 }
 
 // ---- Checklist APIs ----
@@ -195,12 +310,13 @@ export interface ChecklistItem {
   order: number;
   title: string;
   description?: string | null;
-  required: string;
+  required: boolean | string; // Can be boolean or string "true"/"false"
   evidence_type?: string | null;
   status: string; // "PENDING" | "COMPLETED" | "NOT_APPLICABLE" | "FAILED"
   completed_at?: string | null;
   evidence_path?: string | null;
   note?: string | null;
+  _tempNote?: string; // Temporary note for UI
 }
 
 export interface Checklist {
@@ -220,6 +336,11 @@ export interface Checklist {
 
 export async function getTodayChecklist(): Promise<{ data: Checklist }> {
   const response = await api.get("/security/me/checklist/today");
+  return { data: response.data };
+}
+
+export async function createChecklistManually(siteId: number): Promise<{ data: Checklist }> {
+  const response = await api.post("/security/me/checklist/create", { site_id: siteId });
   return { data: response.data };
 }
 

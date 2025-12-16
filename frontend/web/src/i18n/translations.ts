@@ -115,6 +115,7 @@ export const translations = {
       
       // Patrol
       patrolTitle: "Laporan Patroli",
+      patrolDetail: "Detail Patroli",
       areaCovered: "Area yang Diliput",
       areaCoveredPlaceholder: "contoh: Gerbang Utama ke Gudang",
       patrolNotes: "Catatan Patroli",

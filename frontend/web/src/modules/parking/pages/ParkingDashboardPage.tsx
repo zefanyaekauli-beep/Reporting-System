@@ -10,6 +10,8 @@ import { getTodayParkingAttendance, ParkingAttendance, listParkingReports } from
 import { IconActionButton } from "../../shared/components/ui/IconActionButton";
 import { AppIcons } from "../../../icons/AppIcons";
 import api from "../../../api/client";
+import { PengumumanCard } from "../../shared/components/PengumumanCard";
+
 
 interface ReportsSummary {
   total: number;
@@ -110,19 +112,18 @@ export function ParkingDashboardPage() {
     load();
   }, [siteId]);
 
-          return (
-            <MobileLayout title={t("parking.title")}>
-              <div style={{ padding: "16px", paddingBottom: "80px" }}>
-                {/* Pengumuman Card */}
-                <PengumumanCard limit={3} />
-                
-                {/* Site selector */}
-                <SiteSelector
+    return (
+      <MobileLayout title={t("parking.title")}>
+      <div style={{ padding: "16px", paddingBottom: "80px" }}>
+          {/* Pengumuman Card */}
+          <PengumumanCard limit={3} />
+          
+          {/* Site selector */}
+          <SiteSelector
         sites={sites}
         value={siteId}
         onChange={(id) => setSiteId(id)}
       />
-
       {/* Top card: current post & shift status */}
       <section
         style={{

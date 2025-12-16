@@ -2,15 +2,21 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { theme } from "./theme";
+import { usePermissions } from "../../../hooks/usePermissions";
+import { RoleBasedAccess } from "../../../components/RoleBasedAccess";
 
 interface NavItem {
   key: string;
   label: string;
   to: string;
+  divisions?: string[];
+  roles?: string[];
+  permissions?: { resource: string; action: string };
 }
 
 export function BottomNav() {
   const location = useLocation();
+  const { hasRole, isDivision, hasPermission } = usePermissions();
   const segments = location.pathname.split("/").filter(Boolean);
   const division = segments[0]; // "security" | "cleaning" | "parking" | undefined
 
@@ -21,12 +27,41 @@ export function BottomNav() {
 
   const base = `/${division}`;
   
-  // Only 3 items: Dashboard, Panic, Profile
-  const items: NavItem[] = [
+  // Menu items dengan role-based filtering
+  const allItems: NavItem[] = [
     { key: "home", label: "Dashboard", to: `${base}/dashboard` },
-    { key: "panic", label: "Panic", to: `${base}/panic` },
-    { key: "profile", label: "Profil", to: "/profile" }
+    { 
+      key: "panic", 
+      label: "Panic", 
+      to: `${base}/panic`,
+      divisions: ["security","cleaning","parking"], // Only for security
+    },
+    { key: "profile", label: "Profil", to: "/profile" },
+    // {
+    //   key: "reports",
+    //   label: "Reports",
+    //   to: `${base}/reports`,
+    // },
+    // {
+    //   key: "attendance",
+    //   label: "Attendance",
+    //   to: `${base}/attendance`,
+    // },
   ];
+
+  // Filter items based on role and division
+  const items = allItems.filter((item) => {
+    if (item.divisions && !isDivision(item.divisions)) {
+      return false;
+    }
+    if (item.roles && !hasRole(item.roles)) {
+      return false;
+    }
+    if (item.permissions && !hasPermission(item.permissions.resource, item.permissions.action)) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <nav

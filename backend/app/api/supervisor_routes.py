@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import text, inspect
+from sqlalchemy import text, inspect, or_, func
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date, timedelta
@@ -20,6 +20,9 @@ from app.models.attendance_correction import AttendanceCorrection, CorrectionTyp
 from app.models.inspect_point import InspectPoint
 from app.models.shift import Shift, ShiftStatus
 from app.divisions.security.models import SecurityReport, SecurityPatrolLog
+from app.models.master_data import MasterData
+from app.divisions.cleaning import models as cleaning_models
+from app.models.patrol_target import PatrolTarget
 import qrcode
 from io import BytesIO
 from fastapi.responses import StreamingResponse
@@ -268,22 +271,22 @@ def overview(
         
         company_id = current_user.get("company_id", 1)
         
-        # Overall metrics
-        total_today = db.query(Attendance).filter(
+        # Overall metrics - use func.count() for efficiency
+        total_today = db.query(func.count(Attendance.id)).filter(
             Attendance.company_id == company_id
         ).filter(
             Attendance.checkin_time >= start
         ).filter(
             Attendance.checkin_time <= end
-        ).count()
+        ).scalar() or 0
         
-        on_shift_now = db.query(Attendance).filter(
+        on_shift_now = db.query(func.count(Attendance.id)).filter(
             Attendance.company_id == company_id
         ).filter(
             Attendance.status == AttendanceStatus.IN_PROGRESS
-        ).count()
+        ).scalar() or 0
         
-        overtime_today = db.query(Attendance).filter(
+        overtime_today = db.query(func.count(Attendance.id)).filter(
             Attendance.company_id == company_id
         ).filter(
             Attendance.checkin_time >= start
@@ -291,51 +294,51 @@ def overview(
             Attendance.checkin_time <= end
         ).filter(
             Attendance.is_overtime == True
-        ).count()
+        ).scalar() or 0
         
-        unique_guards_today = db.query(Attendance.user_id).filter(
+        unique_guards_today = db.query(func.count(func.distinct(Attendance.user_id))).filter(
             Attendance.company_id == company_id
         ).filter(
             Attendance.checkin_time >= start
         ).filter(
             Attendance.checkin_time <= end
-        ).distinct().count()
+        ).scalar() or 0
 
         # Division-specific attendance snapshots (simplified for now)
         security_attendance = DivisionAttendanceSnapshot(
-            on_duty=db.query(Attendance).filter(
+            on_duty=db.query(func.count(Attendance.id)).filter(
                 Attendance.company_id == company_id
             ).filter(
                 Attendance.role_type == "SECURITY"
             ).filter(
                 Attendance.status == AttendanceStatus.IN_PROGRESS
-            ).count(),
+            ).scalar() or 0,
             expected=0,  # TODO: Calculate from shifts
             late=0,  # TODO: Calculate from shifts
             no_show=0  # TODO: Calculate from shifts
         )
         
         cleaning_attendance = DivisionAttendanceSnapshot(
-            on_duty=db.query(Attendance).filter(
+            on_duty=db.query(func.count(Attendance.id)).filter(
                 Attendance.company_id == company_id
             ).filter(
                 Attendance.role_type == "CLEANING"
             ).filter(
                 Attendance.status == AttendanceStatus.IN_PROGRESS
-            ).count(),
+            ).scalar() or 0,
             expected=0,
             late=0,
             no_show=0
         )
         
         driver_attendance_snapshot = DivisionAttendanceSnapshot(
-            on_duty=db.query(Attendance).filter(
+            on_duty=db.query(func.count(Attendance.id)).filter(
                 Attendance.company_id == company_id
             ).filter(
                 Attendance.role_type == "DRIVER"
             ).filter(
                 Attendance.status == AttendanceStatus.IN_PROGRESS
-            ).count(),
+            ).scalar() or 0,
             expected=0,
             late=0,
             no_show=0
@@ -364,7 +367,7 @@ def overview(
         )
 
         # Legacy counts
-        security_today = db.query(Attendance).filter(
+        security_today = db.query(func.count(Attendance.id)).filter(
             Attendance.company_id == company_id
         ).filter(
             Attendance.checkin_time >= start
@@ -372,9 +375,9 @@ def overview(
             Attendance.checkin_time <= end
         ).filter(
             Attendance.role_type == 'SECURITY'
-        ).count()
+        ).scalar() or 0
         
-        cleaning_today = db.query(Attendance).filter(
+        cleaning_today = db.query(func.count(Attendance.id)).filter(
             Attendance.company_id == company_id
         ).filter(
             Attendance.checkin_time >= start
@@ -382,9 +385,9 @@ def overview(
             Attendance.checkin_time <= end
         ).filter(
             Attendance.role_type == 'CLEANING'
-        ).count()
+        ).scalar() or 0
         
-        parking_today = db.query(Attendance).filter(
+        parking_today = db.query(func.count(Attendance.id)).filter(
             Attendance.company_id == company_id
         ).filter(
             Attendance.checkin_time >= start
@@ -392,17 +395,18 @@ def overview(
             Attendance.checkin_time <= end
         ).filter(
             Attendance.role_type == 'PARKING'
-        ).count()
+        ).scalar() or 0
         
-        reports_today = db.query(SecurityReport).filter(
+        # Use func.count() to avoid loading all columns
+        reports_today = db.query(func.count(SecurityReport.id)).filter(
             SecurityReport.company_id == company_id
         ).filter(
             SecurityReport.created_at >= start
         ).filter(
             SecurityReport.created_at <= end
-        ).count()
+        ).scalar() or 0
         
-        incidents_today = db.query(SecurityReport).filter(
+        incidents_today = db.query(func.count(SecurityReport.id)).filter(
             SecurityReport.company_id == company_id
         ).filter(
             SecurityReport.created_at >= start
@@ -410,15 +414,37 @@ def overview(
             SecurityReport.created_at <= end
         ).filter(
             SecurityReport.report_type == 'incident'
-        ).count()
+        ).scalar() or 0
 
-        patrols_today = db.query(SecurityPatrolLog).filter(
+        patrols_today = db.query(func.count(SecurityPatrolLog.id)).filter(
             SecurityPatrolLog.company_id == company_id
         ).filter(
             SecurityPatrolLog.start_time >= start
         ).filter(
             SecurityPatrolLog.start_time <= end
-        ).count()
+        ).scalar() or 0
+        
+        # Calculate cleaning zones (simplified)
+        cleaning_zones_completed = 0
+        cleaning_zones_total = 0
+        try:
+            cleaning_zones_total = db.query(cleaning_models.CleaningZone).filter(
+                cleaning_models.CleaningZone.company_id == company_id
+            ).count()
+            # TODO: Calculate completed zones based on checklist completion
+        except Exception as e:
+            api_logger.warning(f"Error calculating cleaning zones: {str(e)}")
+            cleaning_zones_total = 0
+        
+        # Calculate parking sessions (simplified)
+        parking_sessions_today = 0
+        try:
+            # TODO: Calculate parking sessions from parking_attendance or parking_sessions table
+            # For now, use attendance count as proxy
+            parking_sessions_today = parking_today
+        except Exception as e:
+            api_logger.warning(f"Error calculating parking sessions: {str(e)}")
+            parking_sessions_today = 0
         
         try:
             return OverviewOut(
@@ -435,6 +461,9 @@ def overview(
                 security_today=security_today,
                 cleaning_today=cleaning_today,
                 parking_today=parking_today,
+                cleaning_zones_completed=cleaning_zones_completed,
+                cleaning_zones_total=cleaning_zones_total,
+                parking_sessions_today=parking_sessions_today,
                 reports_today=reports_today,
                 incidents_today=incidents_today,
                 patrols_today=patrols_today,
@@ -619,6 +648,8 @@ def list_reports(
     site_id: Optional[int] = Query(None, alias="site_id"),
     search: Optional[str] = Query(None, alias="search"),
     company_id: Optional[int] = Query(None, alias="company_id"),
+    type_: Optional[str] = Query(None, alias="type"),
+    status: Optional[str] = Query(None, alias="status"),
 ):
     """List all reports from all divisions with filters and pagination"""
     try:
@@ -628,7 +659,10 @@ def list_reports(
         all_queries = []
         
         if not division or division.lower() == "security":
-            q_sec = db.query(SecurityReport).filter(SecurityReport.company_id == company_id_filter)
+            q_sec = db.query(SecurityReport).filter(
+                SecurityReport.company_id == company_id_filter,
+                SecurityReport.division == "SECURITY",  # Filter by division
+            )
             q_sec = build_date_filter(q_sec, SecurityReport.created_at, date_from, date_to)
             if site_id:
                 q_sec = q_sec.filter(SecurityReport.site_id == site_id)
@@ -642,7 +676,7 @@ def list_reports(
         if not division or division.lower() == "cleaning":
             q_clean = db.query(SecurityReport).filter(
                 SecurityReport.company_id == company_id_filter,
-                SecurityReport.zone_id.isnot(None),
+                SecurityReport.division == "CLEANING",  # Filter by division
             )
             q_clean = build_date_filter(q_clean, SecurityReport.created_at, date_from, date_to)
             if site_id:
@@ -657,10 +691,8 @@ def list_reports(
         if not division or division.lower() == "parking":
             q_park = db.query(SecurityReport).filter(
                 SecurityReport.company_id == company_id_filter,
+                SecurityReport.division == "PARKING",  # Filter by division
             )
-            user_id_col = getattr(SecurityReport, 'user_id', None)
-            if user_id_col:
-                q_park = q_park.join(User, user_id_col == User.id).filter(User.division == "parking")
             q_park = build_date_filter(q_park, SecurityReport.created_at, date_from, date_to)
             if site_id:
                 q_park = q_park.filter(SecurityReport.site_id == site_id)
@@ -763,6 +795,62 @@ def create_site(
     api_logger.info(f"Created site: {site.name} (ID: {site.id}, QR: {site.qr_code})")
     
     return site
+
+@router.patch("/sites/{site_id}", response_model=SiteOut)
+def update_site(
+    site_id: int,
+    payload: SiteCreate,
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_supervisor),
+):
+    """Update a site"""
+    company_id = _.get("company_id", 1)
+    site = db.query(Site).filter(
+        Site.id == site_id,
+        Site.company_id == company_id
+    ).first()
+    
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    if payload.name:
+        site.name = payload.name
+    if payload.address is not None:
+        site.address = payload.address
+    if payload.lat is not None:
+        site.lat = payload.lat
+    if payload.lng is not None:
+        site.lng = payload.lng
+    if payload.geofence_radius_m is not None:
+        site.geofence_radius_m = payload.geofence_radius_m
+    
+    db.commit()
+    db.refresh(site)
+    
+    api_logger.info(f"Updated site: {site.name} (ID: {site.id})")
+    return site
+
+@router.delete("/sites/{site_id}")
+def delete_site(
+    site_id: int,
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_supervisor),
+):
+    """Delete a site"""
+    company_id = _.get("company_id", 1)
+    site = db.query(Site).filter(
+        Site.id == site_id,
+        Site.company_id == company_id
+    ).first()
+    
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    db.delete(site)
+    db.commit()
+    
+    api_logger.info(f"Deleted site: {site.name} (ID: {site.id})")
+    return {"message": "Site deleted"}
 
 @router.get("/sites/{site_id}/qr")
 def generate_site_qr(
@@ -1222,32 +1310,67 @@ def list_patrol_activity(
     current_user: dict = Depends(require_supervisor),
 ):
     """List patrol activities from Security division"""
-    company_id = current_user.get("company_id", 1)
-    
-    q = db.query(SecurityPatrolLog).filter(SecurityPatrolLog.company_id == company_id)
-    
-    if date_from:
-        q = q.filter(SecurityPatrolLog.start_time >= datetime.combine(date_from, datetime.min.time()))
-    if date_to:
-        q = q.filter(SecurityPatrolLog.start_time < datetime.combine(date_to + timedelta(days=1), datetime.min.time()))
-    
-    patrols = q.order_by(SecurityPatrolLog.start_time.desc()).all()
-    
-    result = []
-    for patrol in patrols:
-        user = db.query(User).filter(User.id == patrol.user_id).first()
-        site = db.query(Site).filter(Site.id == patrol.site_id).first()
-        result.append({
-            "id": patrol.id,
-            "user_id": patrol.user_id,
-            "officer_name": user.username if user else f"User #{patrol.user_id}",
-            "site_id": patrol.site_id,
-            "site_name": site.name if site else f"Site #{patrol.site_id}",
-            "start_time": patrol.start_time.isoformat(),
-            "end_time": patrol.end_time.isoformat() if patrol.end_time else None,
-            "created_at": patrol.start_time.isoformat(),
-        })
-    return result
+    try:
+        company_id = current_user.get("company_id", 1)
+        
+        q = db.query(SecurityPatrolLog).filter(SecurityPatrolLog.company_id == company_id)
+        
+        if date_from:
+            q = q.filter(SecurityPatrolLog.start_time >= datetime.combine(date_from, datetime.min.time()))
+        if date_to:
+            q = q.filter(SecurityPatrolLog.start_time < datetime.combine(date_to + timedelta(days=1), datetime.min.time()))
+        
+        patrols = q.order_by(SecurityPatrolLog.start_time.desc()).all()
+        
+        # Batch load users and sites to avoid N+1 queries
+        user_ids = list(set([p.user_id for p in patrols if p.user_id]))
+        site_ids = list(set([p.site_id for p in patrols if p.site_id]))
+        
+        users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
+        sites = {s.id: s for s in db.query(Site).filter(Site.id.in_(site_ids)).all()} if site_ids else {}
+        
+        result = []
+        for patrol in patrols:
+            user = users.get(patrol.user_id) if patrol.user_id else None
+            site = sites.get(patrol.site_id) if patrol.site_id else None
+            
+            # Handle datetime conversion safely
+            start_time_str = None
+            if patrol.start_time:
+                try:
+                    if hasattr(patrol.start_time, 'isoformat'):
+                        start_time_str = patrol.start_time.isoformat()
+                    else:
+                        start_time_str = str(patrol.start_time)
+                except Exception:
+                    start_time_str = str(patrol.start_time) if patrol.start_time else None
+            
+            end_time_str = None
+            if patrol.end_time:
+                try:
+                    if hasattr(patrol.end_time, 'isoformat'):
+                        end_time_str = patrol.end_time.isoformat()
+                    else:
+                        end_time_str = str(patrol.end_time)
+                except Exception:
+                    end_time_str = str(patrol.end_time) if patrol.end_time else None
+            
+            created_at_str = start_time_str  # Use start_time as created_at fallback
+            
+            result.append({
+                "id": patrol.id,
+                "user_id": patrol.user_id,
+                "officer_name": user.username if user else f"User #{patrol.user_id}",
+                "site_id": patrol.site_id,
+                "site_name": site.name if site else f"Site #{patrol.site_id}",
+                "start_time": start_time_str or "",
+                "end_time": end_time_str,
+                "created_at": created_at_str or "",
+            })
+        return result
+    except Exception as e:
+        api_logger.error(f"Error fetching patrol activity: {str(e)}", exc_info=True)
+        raise handle_exception(e, api_logger, "list_patrol_activity")
 
 @router.get("/patrol-activity/{patrol_id}/qr")
 def generate_patrol_qr(
@@ -1548,10 +1671,22 @@ def list_checklists(
     context_type: Optional[str] = Query(None, alias="context_type"),
     status: Optional[str] = Query(None, alias="status"),
     company_id: Optional[int] = Query(None, alias="company_id"),
+    search: Optional[str] = Query(None, alias="search"),
 ):
     """List all checklists/tasks across all divisions with filters"""
+    # #region agent log
+    import json
+    import os
+    import time
     try:
-        from app.divisions.security.models import Checklist, ChecklistTemplate, ChecklistItem, ChecklistStatus
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        log_path = os.path.join(project_root, '.cursor', 'debug.log')
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    except Exception as log_err: 
+        log_path = None
+    # #endregion
+    try:
+        from app.divisions.security.models import Checklist, ChecklistTemplate, ChecklistItem, ChecklistStatus, ChecklistItemStatus
         from app.divisions.cleaning.models import CleaningZone
         from app.divisions.driver.models import Vehicle
         
@@ -1567,11 +1702,13 @@ def list_checklists(
                     "division": division,
                     "context_type": context_type,
                     "status": status,
+                    "search": search,
                 },
                 "pagination": {"page": pagination.page, "limit": pagination.limit},
             },
         )
         
+        # Build base query
         q = db.query(Checklist).filter(Checklist.company_id == company_id_filter)
         
         if date:
@@ -1593,7 +1730,71 @@ def list_checklists(
             except (KeyError, AttributeError):
                 pass
         
+        # Apply search filter - search in template name, site name, user name, division, context type
+        if search and search.strip():
+            search_term = f"%{search.strip()}%"
+            # #region agent log
+            try:
+                if log_path:
+                    with open(log_path, 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({"location": "supervisor_routes.py:1600", "message": "Applying search filter", "data": {"search": search, "search_term": search_term}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "search-debug", "hypothesisId": "A"}) + "\n")
+            except Exception as log_err: pass
+            # #endregion
+            
+            # Use subquery approach for better performance
+            # Get matching template IDs
+            matching_template_ids = db.query(ChecklistTemplate.id).filter(
+                ChecklistTemplate.name.ilike(search_term)
+            )
+            
+            # Get matching site IDs
+            matching_site_ids = db.query(Site.id).filter(
+                Site.name.ilike(search_term)
+            )
+            
+            # Get matching user IDs
+            matching_user_ids = db.query(User.id).filter(
+                User.username.ilike(search_term)
+            )
+            
+            # #region agent log
+            try:
+                if log_path:
+                    template_count = matching_template_ids.count()
+                    site_count = matching_site_ids.count()
+                    user_count = matching_user_ids.count()
+                    with open(log_path, 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({"location": "supervisor_routes.py:1620", "message": "Search subquery counts", "data": {"template_matches": template_count, "site_matches": site_count, "user_matches": user_count}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "search-debug", "hypothesisId": "B"}) + "\n")
+            except: pass
+            # #endregion
+            
+            # Search conditions using subqueries
+            search_conditions = [
+                Checklist.template_id.in_(matching_template_ids),
+                Checklist.site_id.in_(matching_site_ids),
+                Checklist.user_id.in_(matching_user_ids),
+                Checklist.division.ilike(search_term),
+                Checklist.context_type.ilike(search_term),
+            ]
+            q = q.filter(or_(*search_conditions))
+            
+            # #region agent log
+            try:
+                if log_path:
+                    with open(log_path, 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({"location": "supervisor_routes.py:1635", "message": "Search filter applied", "data": {"conditions_count": len(search_conditions)}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "search-debug", "hypothesisId": "C"}) + "\n")
+            except: pass
+            # #endregion
+        
         total = q.count()
+        
+        # #region agent log
+        try:
+            if log_path:
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({"location": "supervisor_routes.py:1660", "message": "Query count result", "data": {"total": total, "has_search": bool(search and search.strip())}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "search-debug", "hypothesisId": "D"}) + "\n")
+        except: pass
+        # #endregion
         
         records = (
             q.order_by(Checklist.shift_date.desc(), Checklist.created_at.desc())
@@ -1601,6 +1802,14 @@ def list_checklists(
             .limit(pagination.limit)
             .all()
         )
+        
+        # #region agent log
+        try:
+            if log_path:
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({"location": "supervisor_routes.py:1670", "message": "Records retrieved", "data": {"records_count": len(records)}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "search-debug", "hypothesisId": "E"}) + "\n")
+        except: pass
+        # #endregion
         
         template_ids = list(set([c.template_id for c in records if c.template_id]))
         user_ids = list(set([c.user_id for c in records]))
@@ -1631,12 +1840,27 @@ def list_checklists(
             
             items = db.query(ChecklistItem).filter(ChecklistItem.checklist_id == checklist.id).all()
             total_items = len(items)
-            completed_items = len([i for i in items if i.status.value == "COMPLETED"])
+            # Handle status - could be enum or string
+            completed_items = 0
+            for item in items:
+                try:
+                    # Handle enum status properly
+                    if isinstance(item.status, ChecklistItemStatus):
+                        status_value = item.status.value
+                    elif hasattr(item.status, 'value'):
+                        status_value = item.status.value
+                    else:
+                        status_value = str(item.status)
+                    
+                    if status_value == "COMPLETED" or status_value == ChecklistItemStatus.COMPLETED:
+                        completed_items += 1
+                except Exception:
+                    pass
             completion_percent = (completed_items / total_items * 100) if total_items > 0 else 0.0
             
             evidence_available = any(
-                (getattr(i, 'photo_id', None) or getattr(i, 'photo_path', None) or getattr(i, 'notes', None))
-                for i in items
+                (getattr(item, 'photo_id', None) or getattr(item, 'photo_path', None) or getattr(item, 'notes', None) or getattr(item, 'note', None))
+                for item in items
             )
             
             zone_or_vehicle = None
@@ -1646,6 +1870,33 @@ def list_checklists(
             elif checklist.context_type in ["DRIVER_PRE_TRIP", "DRIVER_POST_TRIP"]:
                 zone_or_vehicle = f"Vehicle/Trip #{checklist.context_id}" if checklist.context_id else None
             
+            # Handle datetime conversion safely
+            start_time_str = None
+            if checklist.created_at:
+                try:
+                    start_time_str = checklist.created_at.isoformat() if hasattr(checklist.created_at, 'isoformat') else str(checklist.created_at)
+                except:
+                    start_time_str = str(checklist.created_at) if checklist.created_at else None
+            
+            completed_time_str = None
+            if checklist.completed_at:
+                try:
+                    completed_time_str = checklist.completed_at.isoformat() if hasattr(checklist.completed_at, 'isoformat') else str(checklist.completed_at)
+                except:
+                    completed_time_str = str(checklist.completed_at) if checklist.completed_at else None
+            
+            # Handle status safely
+            status_str = None
+            try:
+                if isinstance(checklist.status, ChecklistStatus):
+                    status_str = checklist.status.value
+                elif hasattr(checklist.status, 'value'):
+                    status_str = checklist.status.value
+                else:
+                    status_str = str(checklist.status)
+            except:
+                status_str = str(checklist.status) if checklist.status else "UNKNOWN"
+            
             results.append(ChecklistTaskOut(
                 id=checklist.id,
                 template_name=template.name if template else "Untitled Checklist",
@@ -1654,11 +1905,11 @@ def list_checklists(
                 site_name=site.name if site else "Unknown",
                 zone_or_vehicle=zone_or_vehicle,
                 assigned_user_name=user.username if user else f"User #{checklist.user_id}",
-                start_time=checklist.created_at.isoformat() if checklist.created_at else None,
-                completed_time=checklist.completed_at.isoformat() if checklist.completed_at else None,
+                start_time=start_time_str,
+                completed_time=completed_time_str,
                 completion_percent=round(completion_percent, 1),
                 evidence_available=evidence_available,
-                status=checklist.status.value if hasattr(checklist.status, 'value') else str(checklist.status),
+                status=status_str,
             ))
         
         api_logger.info(f"Retrieved {len(results)} checklist records (total: {total})")
@@ -1668,3 +1919,426 @@ def list_checklists(
     except Exception as e:
         api_logger.error(f"Error fetching checklists: {str(e)}", exc_info=True)
         raise handle_exception(e, api_logger, "list_checklists")
+
+# ========== Dashboard Enhancements ==========
+
+@router.get("/manpower", response_model=List[dict])
+def get_manpower_per_area(
+    site_id: Optional[int] = Query(None),
+    division: Optional[str] = Query(None),
+    date_filter: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_supervisor),
+):
+    """Get manpower count per area/zone."""
+    try:
+        company_id = current_user.get("company_id", 1)
+        filter_date = date_filter or date.today()
+        
+        result = []
+        
+        # Get zones for cleaning
+        if not division or division == "CLEANING":
+            zones = (
+                db.query(cleaning_models.CleaningZone)
+                .filter(cleaning_models.CleaningZone.company_id == company_id)
+            )
+            if site_id:
+                zones = zones.filter(cleaning_models.CleaningZone.site_id == site_id)
+            zones = zones.filter(cleaning_models.CleaningZone.division == "CLEANING").all()
+            
+            for zone in zones:
+                # Count active attendance in this zone
+                active_attendance = (
+                    db.query(func.count(Attendance.id))
+                    .filter(
+                        Attendance.company_id == company_id,
+                        Attendance.site_id == zone.site_id,
+                        Attendance.role_type == "CLEANING",
+                        Attendance.status == AttendanceStatus.IN_PROGRESS,
+                        func.date(Attendance.checkin_time) == filter_date,
+                    )
+                    .scalar() or 0
+                )
+                
+                # Count scheduled shifts
+                scheduled_shifts = (
+                    db.query(func.count(Shift.id))
+                    .filter(
+                        Shift.company_id == company_id,
+                        Shift.site_id == zone.site_id,
+                        Shift.division == "CLEANING",
+                        func.date(Shift.shift_date) == filter_date,
+                        Shift.status == ShiftStatus.ASSIGNED,
+                    )
+                    .scalar() or 0
+                )
+                
+                result.append({
+                    "area_id": zone.id,
+                    "area_name": zone.name,
+                    "area_type": "ZONE",
+                    "total_manpower": scheduled_shifts,
+                    "active_manpower": active_attendance,
+                    "scheduled_manpower": scheduled_shifts,
+                    "division": "CLEANING",
+                })
+        
+        # Get sites for overall
+        if not division:
+            sites = (
+                db.query(Site)
+                .filter(Site.company_id == company_id)
+            )
+            if site_id:
+                sites = sites.filter(Site.id == site_id)
+            sites = sites.all()
+            
+            for site_obj in sites:
+                # Count active attendance
+                active_attendance = (
+                    db.query(func.count(Attendance.id))
+                    .filter(
+                        Attendance.company_id == company_id,
+                        Attendance.site_id == site_obj.id,
+                        Attendance.status == AttendanceStatus.IN_PROGRESS,
+                        func.date(Attendance.checkin_time) == filter_date,
+                    )
+                    .scalar() or 0
+                )
+                
+                # Count scheduled shifts
+                scheduled_shifts = (
+                    db.query(func.count(Shift.id))
+                    .filter(
+                        Shift.company_id == company_id,
+                        Shift.site_id == site_obj.id,
+                        func.date(Shift.shift_date) == filter_date,
+                        Shift.status == ShiftStatus.ASSIGNED,
+                    )
+                    .scalar() or 0
+                )
+                
+                result.append({
+                    "area_id": site_obj.id,
+                    "area_name": site_obj.name,
+                    "area_type": "SITE",
+                    "total_manpower": scheduled_shifts,
+                    "active_manpower": active_attendance,
+                    "scheduled_manpower": scheduled_shifts,
+                    "division": None,
+                })
+        
+        api_logger.info(f"Retrieved manpower data for {len(result)} areas")
+        return result
+        
+    except Exception as e:
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error getting manpower per area: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get manpower per area: {error_msg}"
+        )
+
+
+@router.get("/incidents/perpetrators", response_model=List[dict])
+def get_incident_perpetrators(
+    site_id: Optional[int] = Query(None),
+    from_date: Optional[date] = Query(None),
+    to_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_supervisor),
+):
+    """Get incident perpetrators with statistics."""
+    try:
+        company_id = current_user.get("company_id", 1)
+        
+        incidents = (
+            db.query(SecurityReport)
+            .filter(
+                SecurityReport.company_id == company_id,
+                SecurityReport.division == "SECURITY",
+                SecurityReport.perpetrator_name.isnot(None),
+            )
+        )
+        
+        if site_id:
+            incidents = incidents.filter(SecurityReport.site_id == site_id)
+        if from_date:
+            incidents = incidents.filter(SecurityReport.created_at >= datetime.combine(from_date, datetime.min.time()))
+        if to_date:
+            incidents = incidents.filter(SecurityReport.created_at <= datetime.combine(to_date, datetime.max.time()))
+        
+        incidents = incidents.all()
+        
+        # Group by perpetrator
+        perpetrator_map = {}
+        for incident in incidents:
+            if not incident.perpetrator_name:
+                continue
+            key = f"{incident.perpetrator_name}_{incident.perpetrator_type or 'UNKNOWN'}"
+            if key not in perpetrator_map:
+                perpetrator_map[key] = {
+                    "perpetrator_name": incident.perpetrator_name,
+                    "perpetrator_type": incident.perpetrator_type or "UNKNOWN",
+                    "incidents": [],
+                }
+            perpetrator_map[key]["incidents"].append({
+                "id": incident.id,
+                "title": incident.title,
+                "report_type": incident.report_type,
+                "severity": incident.severity,
+                "incident_level": incident.incident_level,
+                "created_at": incident.created_at.isoformat(),
+                "site_id": incident.site_id,
+            })
+        
+        result = []
+        for key, data in perpetrator_map.items():
+            incidents_list = data["incidents"]
+            incident_dates = [
+                datetime.fromisoformat(inc["created_at"].replace("Z", "+00:00")).date() 
+                for inc in incidents_list
+            ]
+            
+            result.append({
+                "perpetrator_name": data["perpetrator_name"],
+                "perpetrator_type": data["perpetrator_type"],
+                "incident_count": len(incidents_list),
+                "first_incident_date": min(incident_dates).isoformat(),
+                "last_incident_date": max(incident_dates).isoformat(),
+                "incidents": incidents_list,
+            })
+        
+        # Sort by incident count descending
+        result.sort(key=lambda x: x["incident_count"], reverse=True)
+        
+        api_logger.info(f"Retrieved {len(result)} perpetrators with incidents")
+        return result
+        
+    except Exception as e:
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error getting incident perpetrators: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get incident perpetrators: {error_msg}"
+        )
+
+
+@router.get("/patrol-targets", response_model=List[dict])
+def get_patrol_targets_summary(
+    site_id: Optional[int] = Query(None),
+    target_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_supervisor),
+):
+    """Get patrol targets and completion summary."""
+    try:
+        company_id = current_user.get("company_id", 1)
+        filter_date = target_date or date.today()
+        
+        targets = (
+            db.query(PatrolTarget)
+            .filter(
+                PatrolTarget.company_id == company_id,
+                PatrolTarget.target_date == filter_date,
+            )
+        )
+        
+        if site_id:
+            targets = targets.filter(PatrolTarget.site_id == site_id)
+        
+        targets = targets.all()
+        
+        result = []
+        for target in targets:
+            site = db.query(Site).filter(Site.id == target.site_id).first()
+            zone = None
+            if target.zone_id:
+                zone = db.query(cleaning_models.CleaningZone).filter(
+                    cleaning_models.CleaningZone.id == target.zone_id
+                ).first()
+            
+            result.append({
+                "target_id": target.id,
+                "site_id": target.site_id,
+                "site_name": site.name if site else f"Site {target.site_id}",
+                "zone_id": target.zone_id,
+                "zone_name": zone.name if zone else None,
+                "route_id": target.route_id,
+                "target_date": target.target_date.isoformat(),
+                "target_checkpoints": target.target_checkpoints,
+                "completed_checkpoints": target.completed_checkpoints,
+                "completion_percentage": target.completion_percentage,
+                "status": target.status,
+            })
+        
+        api_logger.info(f"Retrieved {len(result)} patrol targets summary")
+        return result
+        
+    except Exception as e:
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error getting patrol targets summary: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get patrol targets summary: {error_msg}"
+        )
+
+
+@router.get("/users/{user_id}/recap", response_model=dict)
+def get_user_recap(
+    user_id: int,
+    period_start: date = Query(...),
+    period_end: date = Query(...),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_supervisor),
+):
+    """Get user recap/report with attendance, patrol, report, and incident summary."""
+    try:
+        company_id = current_user.get("company_id", 1)
+        
+        # Verify user exists and belongs to company
+        user = db.query(User).filter(
+            User.id == user_id,
+            User.company_id == company_id,
+        ).first()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Attendance summary
+        attendance_summary = (
+            db.query(Attendance)
+            .filter(
+                Attendance.user_id == user_id,
+                func.date(Attendance.checkin_time) >= period_start,
+                func.date(Attendance.checkin_time) <= period_end,
+            )
+            .all()
+        )
+        
+        total_attendance = len(attendance_summary)
+        total_hours = sum(
+            (att.checkout_time - att.checkin_time).total_seconds() / 3600
+            for att in attendance_summary
+            if att.checkout_time
+        )
+        overtime_count = sum(1 for att in attendance_summary if att.is_overtime)
+        
+        # Patrol summary
+        from app.divisions.security.models import SecurityPatrolLog
+        patrol_summary = (
+            db.query(SecurityPatrolLog)
+            .filter(
+                SecurityPatrolLog.user_id == user_id,
+                func.date(SecurityPatrolLog.start_time) >= period_start,
+                func.date(SecurityPatrolLog.start_time) <= period_end,
+            )
+            .all()
+        )
+        
+        total_patrols = len(patrol_summary)
+        completed_patrols = sum(1 for p in patrol_summary if p.end_time)
+        
+        # Report summary
+        report_summary = (
+            db.query(SecurityReport)
+            .filter(
+                SecurityReport.user_id == user_id,
+                func.date(SecurityReport.created_at) >= period_start,
+                func.date(SecurityReport.created_at) <= period_end,
+            )
+            .all()
+        )
+        
+        total_reports = len(report_summary)
+        incidents = sum(1 for r in report_summary if r.report_type == "incident")
+        
+        # Incident summary (as perpetrator)
+        incident_as_perpetrator = (
+            db.query(SecurityReport)
+            .filter(
+                SecurityReport.perpetrator_name == user.username,
+                func.date(SecurityReport.created_at) >= period_start,
+                func.date(SecurityReport.created_at) <= period_end,
+            )
+            .all()
+        )
+        
+        return {
+            "user_id": user_id,
+            "user_name": user.username,
+            "period_start": period_start.isoformat(),
+            "period_end": period_end.isoformat(),
+            "attendance": {
+                "total_days": total_attendance,
+                "total_hours": round(total_hours, 2),
+                "overtime_count": overtime_count,
+                "details": [
+                    {
+                        "date": att.checkin_time.date().isoformat(),
+                        "checkin": att.checkin_time.isoformat(),
+                        "checkout": att.checkout_time.isoformat() if att.checkout_time else None,
+                        "hours": round((att.checkout_time - att.checkin_time).total_seconds() / 3600, 2) if att.checkout_time else None,
+                        "is_overtime": att.is_overtime,
+                    }
+                    for att in attendance_summary
+                ],
+            },
+            "patrols": {
+                "total": total_patrols,
+                "completed": completed_patrols,
+                "completion_rate": round((completed_patrols / total_patrols * 100) if total_patrols > 0 else 0, 2),
+                "details": [
+                    {
+                        "id": p.id,
+                        "date": p.start_time.date().isoformat(),
+                        "start_time": p.start_time.isoformat(),
+                        "end_time": p.end_time.isoformat() if p.end_time else None,
+                        "area": p.area_text,
+                        "status": "completed" if p.end_time else "ongoing",
+                    }
+                    for p in patrol_summary
+                ],
+            },
+            "reports": {
+                "total": total_reports,
+                "incidents": incidents,
+                "details": [
+                    {
+                        "id": r.id,
+                        "title": r.title,
+                        "type": r.report_type,
+                        "severity": r.severity,
+                        "date": r.created_at.date().isoformat(),
+                    }
+                    for r in report_summary
+                ],
+            },
+            "incidents_as_perpetrator": {
+                "count": len(incident_as_perpetrator),
+                "details": [
+                    {
+                        "id": r.id,
+                        "title": r.title,
+                        "level": r.incident_level,
+                        "date": r.created_at.date().isoformat(),
+                    }
+                    for r in incident_as_perpetrator
+                ],
+            },
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error getting user recap: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get user recap: {error_msg}"
+        )

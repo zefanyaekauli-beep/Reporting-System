@@ -8,16 +8,25 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+<<<<<<< Updated upstream
+    "lint": "tsc --noEmit",
+    "clean": "node -e \"const fs=require('fs');const path=require('path');function rm(p){try{fs.rmSync(p,{recursive:true,force:true});}catch(e){}}rm(path.join(process.cwd(),'node_modules','.vite'));rm(path.join(process.cwd(),'node_modules','.vite','deps'));rm(path.join(process.cwd(),'.vite'));console.log('✅ Vite cache cleared');\"",
+    "clean:cache": "npm run clean",
+    "clean:all": "npm run clean && rm -rf node_modules/.cache node_modules/.vite/deps .vite",
+    "dev:clean": "npm run clean && npm run dev",
+    "dev:force": "npm run clean:all && npm run dev"
   },
   "dependencies": {
     "axios": "^1.6.2",
     "date-fns": "^4.1.0",
     "html5-qrcode": "^2.3.8",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "recharts": "^3.5.1",
+    "xlsx": "^0.18.5",
     "zustand": "^4.4.7"
   },
   "devDependencies": {

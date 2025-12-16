@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.security import decode_access_token
 from app.models.user import User
-from typing import Optional
+from app.models.permission import Permission, Role
+from typing import Optional, Callable
 
 def get_db():
     """Database session dependency"""
@@ -58,11 +59,16 @@ def get_current_user(
         )
     
     # Return user data (combine JWT claims with DB data for consistency)
+    # Normalize role to lowercase for consistency
+    jwt_role = payload.get("role", "").lower() if payload.get("role") else None
+    db_role = (user.role or "").lower() if user.role else None
+    final_role = jwt_role or db_role or "field"
+    
     return {
         "id": user.id,
         "username": payload.get("username") or user.username,
         "division": payload.get("division"),
-        "role": payload.get("role") or user.role.lower(),
+        "role": final_role,
         "company_id": payload.get("company_id") or user.company_id,
         "site_id": payload.get("site_id") or user.site_id,
         "scope_type": user.scope_type,
@@ -145,3 +151,88 @@ def apply_scope_filter(query, model, current_user: dict):
     # COMPANY scope or None: no additional filter (already filtered by company_id)
     
     return query
+
+
+def require_super_admin(current_user: dict = Depends(get_current_user)):
+    """Dependency to require SUPER_ADMIN role (highest level admin)."""
+    role = current_user.get("role", "").upper()
+    if role not in ("SUPER_ADMIN", "ADMIN"):
+        # Also check if user has SUPER_ADMIN role via RBAC
+        user_id = current_user.get("id")
+        if user_id:
+            db = next(get_db())
+            try:
+                user = db.query(User).filter(User.id == user_id).first()
+                if user and user.role_obj and user.role_obj.name == "SUPER_ADMIN":
+                    return current_user
+            except Exception:
+                pass
+            finally:
+                db.close()
+        
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required",
+        )
+    return current_user
+
+
+def require_permission(resource: str, action: str):
+    """
+    Factory function to create a dependency that checks for a specific permission.
+    
+    Usage:
+        @router.get("/reports")
+        def list_reports(current_user: dict = Depends(require_permission("reports", "read"))):
+            ...
+    """
+    def permission_checker(
+        current_user: dict = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ):
+        role = current_user.get("role", "").upper()
+        
+        # Super admins bypass all permission checks
+        if role in ("SUPER_ADMIN", "ADMIN"):
+            return current_user
+        
+        user_id = current_user.get("id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not authenticated",
+            )
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+            )
+        
+        # Check if user has direct permission
+        permission_name = f"{resource.lower()}.{action.lower()}"
+        user_has_permission = any(
+            perm.name == permission_name and perm.is_active
+            for perm in user.permissions
+        )
+        
+        if user_has_permission:
+            return current_user
+        
+        # Check if user's role has the permission
+        if user.role_obj:
+            role_has_permission = any(
+                perm.name == permission_name and perm.is_active
+                for perm in user.role_obj.permissions
+            )
+            if role_has_permission:
+                return current_user
+        
+        # Permission denied
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission required: {permission_name}",
+        )
+    
+    return permission_checker

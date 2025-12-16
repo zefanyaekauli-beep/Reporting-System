@@ -9,6 +9,8 @@ import { useAuthStore } from "../../../stores/authStore";
 import { scanQRAttendance, getAttendanceStatus, AttendanceStatus } from "../../../api/attendanceApi";
 import { Html5Qrcode } from "html5-qrcode";
 
+import { useNavigate } from "react-router-dom";
+
 type RoleType = "SECURITY" | "CLEANING" | "DRIVER" | "PARKING";
 
 interface QRAttendancePageProps {
@@ -21,6 +23,9 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
   const { user } = useAuthStore();
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
+  const videoStreamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  
   const [status, setStatus] = useState<"loading" | "on_shift" | "not_clocked_in">("loading");
   const [currentAttendance, setCurrentAttendance] = useState<AttendanceStatus["current_attendance"]>(null);
   const [message, setMessage] = useState("");
@@ -28,25 +33,51 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scanPaused, setScanPaused] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [pendingQrData, setPendingQrData] = useState<string | null>(null);
+  const [showPhotoPrompt, setShowPhotoPrompt] = useState(false);
+  const [loadingState, setLoadingState] = useState<{
+    show: boolean;
+    message: string;
+    progress: number;
+  }>({
+    show: false,
+    message: "",
+    progress: 0
+  });
+  const navigate = useNavigate();
+
 
   useEffect(() => {
     fetchStatus();
     
-    // Check if we're in a secure context (HTTPS or localhost)
+    // Check if we're in a secure context
     if (!window.isSecureContext && window.location.protocol !== "http:" || 
         (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && window.location.protocol !== "https:")) {
       console.warn("Camera access may require HTTPS on mobile devices");
     }
     
-    // Start scanner after a short delay to ensure DOM is ready
+    // Start scanner after a short delay
     const timer = setTimeout(() => {
       startScanner();
     }, 500);
+    
     return () => {
       clearTimeout(timer);
       stopScanner();
+      cleanupVideoStream();
     };
   }, [roleType]);
+
+  const cleanupVideoStream = () => {
+    if (videoStreamRef.current) {
+      console.log("🧹 Cleaning up video stream");
+      videoStreamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log("⏹️ Track stopped:", track.kind);
+      });
+      videoStreamRef.current = null;
+    }
+  };
 
   const startScanner = async () => {
     if (scanning || scanPaused) return;
@@ -54,7 +85,7 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
     try {
       const html5QrCode = new Html5Qrcode("qr-scanner-attendance");
       setScanning(true);
-      setErrorMsg(""); // Clear any previous errors
+      setErrorMsg("");
       
       // Try to get available cameras first
       const devices = await Html5Qrcode.getCameras();
@@ -71,7 +102,7 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
         cameraId = devices[0].id;
       }
       
-      // Calculate QR box size based on viewport (better for mobile)
+      // Calculate QR box size based on viewport
       const container = scannerContainerRef.current;
       const qrboxSize = container ? Math.min(container.offsetWidth - 40, 300) : 250;
       
@@ -93,7 +124,7 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
           }
         },
         (errorMessage) => {
-          // Ignore scanning errors (they're frequent during scanning)
+          // Ignore scanning errors
         }
       );
       
@@ -102,14 +133,14 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
       console.error("Failed to start scanner:", err);
       let errorMessage = "Gagal membuka kamera";
       
-      if (err.name === "NotAllowedError" || err.message?.includes("permission") || err.message?.includes("Permission denied")) {
+      if (err.name === "NotAllowedError" || err.message?.includes("permission")) {
         errorMessage = "Izin kamera ditolak. Silakan izinkan akses kamera di pengaturan browser.";
-      } else if (err.name === "NotFoundError" || err.message?.includes("camera") || err.message?.includes("kamera") || err.message?.includes("No camera")) {
+      } else if (err.name === "NotFoundError" || err.message?.includes("camera")) {
         errorMessage = "Kamera tidak ditemukan. Pastikan perangkat memiliki kamera.";
-      } else if (err.name === "NotReadableError" || err.message?.includes("readable") || err.message?.includes("in use")) {
-        errorMessage = "Kamera sedang digunakan oleh aplikasi lain. Tutup aplikasi lain yang menggunakan kamera.";
-      } else if (err.message?.includes("HTTPS") || err.message?.includes("secure context") || (!window.isSecureContext && window.location.protocol !== "http:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1")) {
-        errorMessage = "Browser memerlukan HTTPS untuk akses kamera. Gunakan HTTPS atau test di localhost.";
+      } else if (err.name === "NotReadableError" || err.message?.includes("in use")) {
+        errorMessage = "Kamera sedang digunakan oleh aplikasi lain.";
+      } else if (err.message?.includes("HTTPS") || err.message?.includes("secure context")) {
+        errorMessage = "Browser memerlukan HTTPS untuk akses kamera.";
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -121,13 +152,16 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
 
   const stopScanner = async () => {
     if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        await scannerRef.current.clear();
-      } catch (err) {
-        // Ignore stop errors
-      }
+      const scanner = scannerRef.current;
       scannerRef.current = null;
+      
+      try {
+        await scanner.stop();
+        await scanner.clear();
+        console.log("✅ Scanner stopped and cleared");
+      } catch (err) {
+        console.warn("⚠️ Scanner stop error (ignoring):", err);
+      }
     }
     setScanning(false);
   };
@@ -146,124 +180,160 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
 
   const getLocation = (): Promise<{ latitude: number; longitude: number; accuracy: number }> => {
     return new Promise((resolve, reject) => {
+      console.log("📍 Getting location...");
       if (!navigator.geolocation) {
         return reject(new Error("GPS tidak didukung"));
       }
+      
+      const timeoutId = setTimeout(() => {
+        reject(new Error("GPS timeout"));
+      }, 10000);
+      
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          clearTimeout(timeoutId);
+          console.log("✅ Location obtained");
           resolve({
             latitude: pos.coords.latitude,
             longitude: pos.coords.longitude,
             accuracy: pos.coords.accuracy,
           });
         },
-        (err) => reject(err),
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        (err) => {
+          clearTimeout(timeoutId);
+          console.warn("⚠️ Location error:", err.message);
+          reject(err);
+        },
+        { 
+          enableHighAccuracy: true, 
+          timeout: 8000, 
+          maximumAge: 0 
+        }
       );
     });
   };
 
-  const takePhoto = (): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.capture = "environment"; // mobile: open camera
-      input.onchange = () => {
-        if (input.files && input.files[0]) {
-          resolve(input.files[0]);
-        } else {
-          reject(new Error("Foto tidak diambil"));
-        }
-      };
-      input.onerror = () => {
-        reject(new Error("Gagal membuka kamera untuk foto"));
-      };
-      input.click();
-    });
-  };
-
-
-  const handleScan = async (qrText: string) => {
-    if (!qrText || isSubmitting || scanPaused) return;
-
-    setIsSubmitting(true);
-    setScanPaused(true);
-    setErrorMsg("");
-    setMessage("");
+  const handlePhotoCapture = async (file: File | null) => {
+    console.log("📸 [handlePhotoCapture] Photo received:", file ? file.name : "null");
+    // setShowPhotoPrompt(false);
     
-    // Pause scanner temporarily
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.pause();
-      } catch (err) {
-        // Ignore pause errors
-      }
+    if (!pendingQrData) {
+      console.error("❌ No pending QR data");
+      return;
     }
 
+    await processAttendance(pendingQrData, file);
+    setPendingQrData(null);
+  };
+
+  const processAttendance = async (qrText: string, photo: File | null) => {
     try {
-      // Get GPS location (optional, continue even if fails)
+      console.log("🌐 [processAttendance] === Submitting to Backend ===");
+      setLoadingState({ show: true, message: "Loading", progress: 0 });
+
+      // Get location
       let location: { latitude: number | null; longitude: number | null; accuracy: number | null } = {
         latitude: null,
         longitude: null,
         accuracy: null,
       };
+      
       try {
         const gps = await getLocation();
         location = gps;
+        console.log("✅ GPS location obtained:", location);
       } catch (err) {
-        console.warn("GPS failed:", err);
-        // Continue without GPS
+        console.warn("⚠️ GPS failed, continuing without location:", err);
       }
 
-      // Take photo
-      const photo = await takePhoto();
-
-      // Submit to backend
+      console.log("🌐 [processAttendance] Payload:", {
+        qr_data: qrText,
+        role_type: roleType,
+        lat: location.latitude ?? undefined,
+        lng: location.longitude ?? undefined,
+        accuracy: location.accuracy ?? undefined,
+        photo: photo ? { name: photo.name, size: photo.size, type: photo.type } : null
+      });
+      
       const result = await scanQRAttendance({
         qr_data: qrText,
         role_type: roleType,
         lat: location.latitude ?? undefined,
         lng: location.longitude ?? undefined,
         accuracy: location.accuracy ?? undefined,
-        photo,
+        photo: photo ?? undefined,
       });
+      
+      console.log("✅ [processAttendance] Backend response:", result);
 
-      // Show success message
+      setLoadingState({ show: false, message: "", progress: 0 });
+
       if (result.action === "clock_in") {
-        setMessage(`✅ Clock IN di ${result.site_name}`);
-        showToast(`Clock IN di ${result.site_name}`, "success");
+        const msg = `✅ Clock IN di ${result.site_name}`;
+        setMessage(msg);
+        showToast(msg, "success");
+        navigate("/security/passdown")
+        
       } else {
-        setMessage(`✅ Clock OUT di ${result.site_name}`);
-        showToast(`Clock OUT di ${result.site_name}`, "success");
+        const msg = `✅ Clock OUT di ${result.site_name}`;
+        setMessage(msg);
+        showToast(msg, "success");
+        navigate("/security/passdown")
+        
       }
 
-      // Refresh status
       await fetchStatus();
 
-      // Clear message after 3 seconds
-      setTimeout(() => setMessage(""), 3000);
+      setTimeout(() => {
+        setMessage("");
+      }, 3000);
+      
     } catch (err: any) {
-      console.error(err);
+      console.error("❌ [processAttendance] Error:", err);
+      
+      setLoadingState({ show: false, message: "", progress: 0 });
+      
       const errorMessage = err?.response?.data?.detail || err?.message || "Scan gagal";
       setErrorMsg(errorMessage);
       showToast(errorMessage, "error");
     } finally {
       setIsSubmitting(false);
-      // Resume scanner after a delay
-      setTimeout(async () => {
-        setScanPaused(false);
-        if (scannerRef.current) {
-          try {
-            await scannerRef.current.resume();
-          } catch (err) {
-            // If resume fails, restart scanner
-            stopScanner();
-            setTimeout(() => startScanner(), 500);
-          }
-        }
-      }, 2000);
+      setScanPaused(true);
     }
+  };
+
+  const handleScan = async (qrText: string) => {
+    console.log("🔍 [handleScan] QR detected:", qrText);
+    
+    if (!qrText || isSubmitting || scanPaused) {
+      console.warn("⚠️ [handleScan] Scan blocked");
+      return;
+    }
+
+    console.log("🚀 [handleScan] Starting scan process");
+    setIsSubmitting(true);
+    setScanPaused(true);
+    setErrorMsg("");
+    setMessage("");
+    
+    // Pause scanner
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.pause();
+        console.log("✅ Scanner paused");
+      } catch (err) {
+        console.warn("⚠️ Failed to pause scanner:", err);
+      }
+    }
+
+    // Stop scanner completely before showing photo prompt
+    await stopScanner();
+    
+    // Store QR data and show photo prompt
+    setPendingQrData(qrText);
+
+    console.log("📸 Automatically triggering camera input...");
+    fileInputRef.current?.click();
   };
 
   const getRoleLabel = () => {
@@ -283,6 +353,173 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
 
   return (
     <MobileLayout title={`QR Attendance - ${getRoleLabel()}`}>
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0] || null;
+          handlePhotoCapture(file);
+          // Reset input
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        }}
+      />
+
+      {/* Photo Prompt Modal */}
+      {/* {showPhotoPrompt && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderRadius: theme.radius.card,
+              padding: "24px",
+              maxWidth: "400px",
+              width: "100%",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "18px",
+                fontWeight: 600,
+                color: theme.colors.textMain,
+                marginBottom: "16px",
+                textAlign: "center",
+              }}
+            >
+              📸 Ambil Foto
+            </div>
+            
+            <div
+              style={{
+                fontSize: "14px",
+                color: theme.colors.textSecondary,
+                marginBottom: "24px",
+                textAlign: "center",
+                lineHeight: "1.5",
+              }}
+            >
+              Ambil foto untuk verifikasi kehadiran atau lewati jika tidak diperlukan.
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                flexDirection: "column",
+              }}
+            >
+              <button
+                onClick={() => {
+                  console.log("📸 Take Photo button clicked");
+                  fileInputRef.current?.click();
+                }}
+                style={{
+                  width: "100%",
+                  fontSize: "15px",
+                  padding: "14px 20px",
+                  borderRadius: theme.radius.pill,
+                  border: "none",
+                  backgroundColor: theme.colors.primary,
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                📸 Ambil Foto
+              </button>
+
+              <button
+                onClick={handleSkipPhoto}
+                style={{
+                  width: "100%",
+                  fontSize: "15px",
+                  padding: "14px 20px",
+                  borderRadius: theme.radius.pill,
+                  border: `1px solid ${theme.colors.border}`,
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.textMain,
+                  cursor: "pointer",
+                  fontWeight: 500,
+                }}
+              >
+                Lewati
+              </button>
+            </div>
+          </div>
+        </div>
+      )} */}
+
+      {/* Loading Overlay */}
+      {loadingState.show && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderRadius: theme.radius.card,
+              padding: "24px 32px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+            }}
+          >
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                border: `3px solid ${theme.colors.backgroundSecondary}`,
+                borderTop: `3px solid ${theme.colors.primary}`,
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+            
+            <div
+              style={{
+                fontSize: "16px",
+                fontWeight: 500,
+                color: theme.colors.textMain,
+              }}
+            >
+              Loading...
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ padding: "16px", paddingBottom: "80px" }}>
         {/* Status Card */}
         <div
@@ -425,6 +662,7 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
               <button
                 onClick={() => {
                   setErrorMsg("");
+                  setScanPaused(false);
                   startScanner();
                 }}
                 style={{
@@ -481,25 +719,21 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
               </div>
             ) : errorMsg.includes("HTTPS") || errorMsg.includes("secure") ? (
               <div style={{ fontSize: 11, opacity: 0.9, marginTop: 4 }}>
-                💡 Tips: Beberapa browser memerlukan HTTPS untuk kamera. Coba gunakan browser yang berbeda atau set up HTTPS untuk development.
+                💡 Tips: Beberapa browser memerlukan HTTPS untuk kamera.
               </div>
             ) : null}
           </div>
         )}
-
-        {isSubmitting && (
-          <div
-            style={{
-              fontSize: 11,
-              color: theme.colors.textSecondary,
-              textAlign: "center",
-            }}
-          >
-            Memproses...
-          </div>
-        )}
       </div>
+
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </MobileLayout>
   );
 }
-

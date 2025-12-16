@@ -9,8 +9,13 @@ class CleaningZoneBase(BaseModel):
     id: int
     site_id: int
     name: str
+    code: Optional[str] = None
+    qr_code: Optional[str] = None
     floor: Optional[str] = None
     area_type: Optional[str] = None
+    geofence_latitude: Optional[str] = None
+    geofence_longitude: Optional[str] = None
+    geofence_radius_meters: Optional[int] = None
     is_active: bool
 
     class Config:

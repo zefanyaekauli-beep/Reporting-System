@@ -11,8 +11,19 @@ import {
   AnnouncementPriority,
   AnnouncementScope,
 } from "../../../api/announcementApi";
-import { listSites, Site } from "../../../api/supervisorApi";
+import { listSites, Site, getOfficers } from "../../../api/supervisorApi";
 import api from "../../../api/client";
+
+
+export type Officer = {
+  id: number;
+  name: string;
+  badge_id: string;
+  position: string;
+  division: string;
+  status: string;
+};
+
 
 export function SupervisorAnnouncementsPage() {
   const { showToast } = useToast();
@@ -21,6 +32,25 @@ export function SupervisorAnnouncementsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [officers, setOfficers] = useState<Officer[]>([]);
+const [officerSearch, setOfficerSearch] = useState("");
+
+useEffect(() => {
+  if (showCreateForm) {
+    loadOfficers();
+  }
+}, [showCreateForm]);
+
+const loadOfficers = async () => {
+  try {
+    const data = await getOfficers(); // <-- pakai API kamu
+    setOfficers(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.error("Failed load officers:", err);
+    showToast("Gagal memuat personel", "error");
+  }
+};
+
 
   // Form state
   const [formData, setFormData] = useState<AnnouncementCreatePayload>({
@@ -32,6 +62,8 @@ export function SupervisorAnnouncementsPage() {
     user_ids: [],
     require_ack: false,
   });
+
+  
 
   useEffect(() => {
     loadData();
@@ -319,34 +351,83 @@ export function SupervisorAnnouncementsPage() {
               )}
 
               {formData.scope === "users" && (
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, color: theme.colors.textMuted, display: "block", marginBottom: 4 }}>
-                    Pilih Personel *
-                  </label>
-                  <div style={{ fontSize: 11, color: theme.colors.textSoft, marginBottom: 8 }}>
-                    (Fitur ini memerlukan endpoint untuk list users - TODO)
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Masukkan user IDs (contoh: 1,2,3)"
-                    value={formData.user_ids?.join(",") || ""}
-                    onChange={(e) => {
-                      const ids = e.target.value
-                        .split(",")
-                        .map((s) => parseInt(s.trim()))
-                        .filter((n) => !isNaN(n));
-                      setFormData({ ...formData, user_ids: ids });
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "8px",
-                      borderRadius: theme.radius.card,
-                      border: `1px solid ${theme.colors.border}`,
-                      fontSize: 13,
-                    }}
-                  />
-                </div>
-              )}
+  <div style={{ marginBottom: 12 }}>
+    <label style={{ fontSize: 12, color: theme.colors.textMuted, display: "block", marginBottom: 4 }}>
+      Pilih Personel *
+    </label>
+
+    {/* Search Input */}
+    <input
+      type="text"
+      placeholder="Cari nama personel…"
+      value={officerSearch}
+      onChange={(e) => setOfficerSearch(e.target.value)}
+      style={{
+        width: "100%",
+        padding: "8px",
+        marginBottom: 8,
+        borderRadius: theme.radius.card,
+        border: `1px solid ${theme.colors.border}`,
+        fontSize: 13,
+      }}
+    />
+
+    {/* List Officers */}
+    <div
+      style={{
+        maxHeight: 200,
+        overflowY: "auto",
+        border: `1px solid ${theme.colors.border}`,
+        borderRadius: theme.radius.card,
+        padding: 8,
+      }}
+    >
+      {officers
+        .filter((o) =>
+          o.name.toLowerCase().includes(officerSearch.toLowerCase())
+        )
+        .map((officer) => (
+          <label
+            key={officer.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "4px 0",
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={formData.user_ids?.includes(officer.id) || false}
+              onChange={(e) => {
+                const current = formData.user_ids || [];
+                if (e.target.checked) {
+                  setFormData({
+                    ...formData,
+                    user_ids: [...current, officer.id],
+                  });
+                } else {
+                  setFormData({
+                    ...formData,
+                    user_ids: current.filter((id) => id !== officer.id),
+                  });
+                }
+              }}
+            />
+            <div>
+              <div style={{ fontWeight: 600 }}>{officer.name}</div>
+              <div style={{ fontSize: 11, color: theme.colors.textSoft }}>
+                {officer.position} • {officer.division}
+              </div>
+            </div>
+          </label>
+        ))}
+    </div>
+  </div>
+)}
+
 
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>

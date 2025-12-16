@@ -29,9 +29,10 @@ export function IconActionButton({
     justifyContent: "center",
     gap: 6,
     borderRadius: theme.radius.card,
-    border: `1px solid ${theme.colors.border}`,
-    padding: "12px 8px",
-    minWidth: "80px",
+    // border: `1px solid ${theme.colors.border}`,
+    // padding: "12px 8px",
+    // minWidth: "80px",
+
     transition: "all 0.2s",
     cursor: disabled ? "not-allowed" : "pointer",
   };
@@ -41,35 +42,35 @@ export function IconActionButton({
       ...buttonStyle,
       borderColor: theme.colors.border,
       color: theme.colors.textSoft,
-      backgroundColor: theme.colors.background,
+      // backgroundColor: theme.colors.background,
       opacity: 0.5,
     };
   } else if (variant === "primary") {
     buttonStyle = {
       ...buttonStyle,
       backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
+      // borderColor: theme.colors.primary,
       color: "#FFFFFF",
       boxShadow: theme.shadowCard,
     };
   } else if (variant === "danger") {
     buttonStyle = {
       ...buttonStyle,
-      borderColor: theme.colors.danger,
+      // borderColor: theme.colors.danger,
       color: theme.colors.danger,
       backgroundColor: theme.colors.surface,
     };
   } else if (variant === "success") {
     buttonStyle = {
       ...buttonStyle,
-      borderColor: theme.colors.success,
+      // borderColor: theme.colors.success,
       color: theme.colors.success,
       backgroundColor: theme.colors.surface,
     };
   } else {
     buttonStyle = {
       ...buttonStyle,
-      borderColor: theme.colors.border,
+      // borderColor: theme.colors.border,
       color: theme.colors.textMain,
       backgroundColor: theme.colors.surface,
     };
@@ -84,20 +85,20 @@ export function IconActionButton({
       onMouseEnter={(e) => {
         if (!disabled && variant !== "primary") {
           e.currentTarget.style.backgroundColor = theme.colors.background;
-          e.currentTarget.style.borderColor = theme.colors.primary;
+          // e.currentTarget.style.borderColor = theme.colors.primary;
         }
       }}
       onMouseLeave={(e) => {
         if (!disabled && variant !== "primary") {
           e.currentTarget.style.backgroundColor = theme.colors.surface;
-          e.currentTarget.style.borderColor = theme.colors.border;
+          // e.currentTarget.style.borderColor = theme.colors.border;
         }
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px", minHeight: "32px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px", minHeight: "32px"}}>
         {icon}
       </div>
-      <span style={{ fontSize: "10px", fontWeight: 600, textAlign: "center", lineHeight: 1.2 }}>
+      <span style={{ fontSize: "10px", fontWeight: 600, textAlign: "center", lineHeight: 1.2, }}>
         {label}
       </span>
     </button>

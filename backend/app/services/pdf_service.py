@@ -12,6 +12,102 @@ from typing import List, Optional, Dict, Any
 import os
 from io import BytesIO
 
+
+def generate_payroll_invoice(self, invoice_data: Dict[str, Any]) -> BytesIO:
+    """Generate payroll invoice PDF."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    story = []
+    
+    # Title
+    story.append(Paragraph("PAYROLL INVOICE", self.title_style))
+    story.append(Spacer(1, 12))
+    
+    # Invoice details
+    invoice_info = [
+        ["Invoice Number:", invoice_data.get("invoice_number", "N/A")],
+        ["Employee:", invoice_data.get("user_name", "N/A")],
+        ["Period:", f"{invoice_data.get('period_start', '')} to {invoice_data.get('period_end', '')}"],
+    ]
+    
+    invoice_table = Table(invoice_info, colWidths=[3*cm, 10*cm])
+    invoice_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(invoice_table)
+    story.append(Spacer(1, 20))
+    
+    # Earnings
+    earnings_data = [
+        ["Description", "Amount (IDR)"],
+        ["Base Salary", f"{invoice_data.get('base_salary', 0):,.0f}"],
+        ["Overtime Pay", f"{invoice_data.get('overtime_pay', 0):,.0f}"],
+        ["Allowances", f"{invoice_data.get('allowances', 0):,.0f}"],
+        ["", ""],
+        ["Total Gross", f"<b>{invoice_data.get('total_gross', 0):,.0f}</b>"],
+    ]
+    
+    earnings_table = Table(earnings_data, colWidths=[10*cm, 5*cm])
+    earnings_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    story.append(earnings_table)
+    story.append(Spacer(1, 12))
+    
+    # Deductions
+    deductions_data = [
+        ["Description", "Amount (IDR)"],
+        ["Tax", f"{invoice_data.get('tax', 0):,.0f}"],
+        ["Insurance", f"{invoice_data.get('insurance', 0):,.0f}"],
+        ["", ""],
+        ["Total Deductions", f"<b>{invoice_data.get('total_deductions', 0):,.0f}</b>"],
+    ]
+    
+    deductions_table = Table(deductions_data, colWidths=[10*cm, 5*cm])
+    deductions_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    story.append(deductions_table)
+    story.append(Spacer(1, 20))
+    
+    # Net Pay
+    net_pay_data = [
+        ["NET PAY", f"<b>IDR {invoice_data.get('net_pay', 0):,.0f}</b>"],
+    ]
+    
+    net_pay_table = Table(net_pay_data, colWidths=[10*cm, 5*cm])
+    net_pay_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.lightblue),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 12),
+    ]))
+    story.append(net_pay_table)
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
 class PDFService:
     """Service for generating PDF reports"""
     
@@ -60,6 +156,101 @@ class PDFService:
             textColor=colors.HexColor('#757575'),
             spaceAfter=4
         )
+    
+    def generate_payroll_invoice(self, invoice_data: Dict[str, Any]) -> BytesIO:
+        """Generate payroll invoice PDF."""
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        story = []
+        
+        # Title
+        story.append(Paragraph("PAYROLL INVOICE", self.title_style))
+        story.append(Spacer(1, 12))
+        
+        # Invoice details
+        invoice_info = [
+            ["Invoice Number:", invoice_data.get("invoice_number", "N/A")],
+            ["Employee:", invoice_data.get("user_name", "N/A")],
+            ["Period:", f"{invoice_data.get('period_start', '')} to {invoice_data.get('period_end', '')}"],
+        ]
+        
+        invoice_table = Table(invoice_info, colWidths=[3*cm, 10*cm])
+        invoice_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(invoice_table)
+        story.append(Spacer(1, 20))
+        
+        # Earnings
+        earnings_data = [
+            ["Description", "Amount (IDR)"],
+            ["Base Salary", f"{invoice_data.get('base_salary', 0):,.0f}"],
+            ["Overtime Pay", f"{invoice_data.get('overtime_pay', 0):,.0f}"],
+            ["Allowances", f"{invoice_data.get('allowances', 0):,.0f}"],
+            ["", ""],
+            ["Total Gross", f"<b>{invoice_data.get('total_gross', 0):,.0f}</b>"],
+        ]
+        
+        earnings_table = Table(earnings_data, colWidths=[10*cm, 5*cm])
+        earnings_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        story.append(earnings_table)
+        story.append(Spacer(1, 12))
+        
+        # Deductions
+        deductions_data = [
+            ["Description", "Amount (IDR)"],
+            ["Tax", f"{invoice_data.get('tax', 0):,.0f}"],
+            ["Insurance", f"{invoice_data.get('insurance', 0):,.0f}"],
+            ["", ""],
+            ["Total Deductions", f"<b>{invoice_data.get('total_deductions', 0):,.0f}</b>"],
+        ]
+        
+        deductions_table = Table(deductions_data, colWidths=[10*cm, 5*cm])
+        deductions_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        story.append(deductions_table)
+        story.append(Spacer(1, 20))
+        
+        # Net Pay
+        net_pay_data = [
+            ["NET PAY", f"<b>IDR {invoice_data.get('net_pay', 0):,.0f}</b>"],
+        ]
+        
+        net_pay_table = Table(net_pay_data, colWidths=[10*cm, 5*cm])
+        net_pay_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.lightblue),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+        ]))
+        story.append(net_pay_table)
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
     
     def generate_security_report_pdf(self, report: Dict[str, Any], site_name: str, user_name: str) -> BytesIO:
         """Generate PDF for a single security report"""

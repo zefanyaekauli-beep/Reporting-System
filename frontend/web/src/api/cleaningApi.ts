@@ -62,27 +62,6 @@ export interface ZoneChecklist {
   items: ChecklistItem[];
 }
 
-export interface ChecklistItem {
-  id: number;
-  order: number;
-  title: string;
-  description?: string | null;
-  required: boolean;
-  evidence_type: string;
-  status: string;
-  completed_at?: string | null;
-  note?: string | null;
-  evidence_id?: string | null;
-  // KPI fields
-  kpi_key?: string | null;
-  answer_type?: string | null;
-  photo_required?: boolean;
-  answer_bool?: boolean | null;
-  answer_int?: number | null;
-  answer_text?: string | null;
-  photo_id?: number | null;
-}
-
 // List cleaning zones
 export async function listCleaningZones(params?: {
   site_id?: number;
@@ -116,7 +95,48 @@ export async function getZoneChecklist(
   return { data: response.data };
 }
 
-// Complete checklist item (reuse security API endpoint)
+// Checklist interfaces
+export interface Checklist {
+  id: number;
+  status: "PENDING" | "COMPLETED" | "INCOMPLETE";
+  items: ChecklistItem[];
+}
+
+export interface ChecklistItem {
+  id: number;
+  order?: number;
+  title: string;
+  description?: string | null;
+  required: boolean | string;
+  evidence_type?: string;
+  status: "PENDING" | "COMPLETED" | "NOT_APPLICABLE" | "FAILED" | string;
+  completed_at?: string | null;
+  note?: string | null;
+  evidence_id?: string | null;
+  _tempNote?: string;
+  // KPI fields
+  kpi_key?: string | null;
+  answer_type?: string | null;
+  photo_required?: boolean;
+  answer_bool?: boolean | null;
+  answer_int?: number | null;
+  answer_text?: string | null;
+  photo_id?: number | null;
+}
+
+// Get today's checklist
+export async function getTodayChecklist(): Promise<{ data: Checklist }> {
+  const response = await api.get("/cleaning/me/checklist/today");
+  return { data: response.data };
+}
+
+// Create checklist manually
+export async function createChecklistManually(siteId: number): Promise<{ data: Checklist }> {
+  const response = await api.post("/cleaning/me/checklist/create", { site_id: siteId });
+  return { data: response.data };
+}
+
+// Complete checklist item
 export async function completeChecklistItem(
   checklistId: number,
   itemId: number,
@@ -134,9 +154,9 @@ export async function completeChecklistItem(
     gps_accuracy?: number | null;
     mock_location?: boolean | null;
   }
-): Promise<{ data: any }> {
-  const response = await api.post(
-    `/security/me/checklist/${checklistId}/items/${itemId}/complete`,
+): Promise<{ data: Checklist }> {
+  const response = await api.patch(
+    `/cleaning/me/checklist/${checklistId}/items/${itemId}/complete`,
     payload
   );
   return { data: response.data };
@@ -190,14 +210,18 @@ export async function getTodayCleaningAttendance(
 
 export interface CleaningReport {
   id: number;
+  company_id: number;
   site_id: number;
-  zone_id?: number | null;
+  user_id: number;
+  division?: string | null;
   report_type: string;
+  location_id?: number | null;
+  location_text?: string | null;
+  zone_id?: number | null;
   title: string;
   description?: string | null;
   severity?: string | null;
   status: string;
-  location_text?: string | null;
   evidence_paths?: string | null;
   created_at: string;
 }
@@ -212,23 +236,65 @@ export async function createCleaningReport(payload: {
   severity?: string;
   evidenceFiles?: File[];
 }): Promise<{ data: CleaningReport }> {
+  // Validate required fields
+  if (!payload.report_type || !payload.report_type.trim()) {
+    throw new Error("Report type is required");
+  }
+  if (!payload.site_id || isNaN(Number(payload.site_id)) || Number(payload.site_id) <= 0) {
+    throw new Error("Site ID is required and must be a valid number");
+  }
+  if (!payload.title || !payload.title.trim()) {
+    throw new Error("Title is required");
+  }
+  
   const formData = new FormData();
-  formData.append("report_type", payload.report_type);
+  formData.append("report_type", payload.report_type.trim());
   formData.append("site_id", String(payload.site_id));
-  if (payload.zone_id) formData.append("zone_id", String(payload.zone_id));
-  if (payload.location_text) formData.append("location_text", payload.location_text);
-  formData.append("title", payload.title);
-  if (payload.description) formData.append("description", payload.description);
-  if (payload.severity) formData.append("severity", payload.severity);
-  if (payload.evidenceFiles) {
+  formData.append("title", payload.title.trim());
+  
+  // Optional fields - only append if they exist and have values
+  if (payload.zone_id != null && payload.zone_id > 0) {
+    formData.append("zone_id", String(payload.zone_id));
+  }
+  if (payload.location_text && payload.location_text.trim()) {
+    formData.append("location_text", payload.location_text.trim());
+  }
+  if (payload.description && payload.description.trim()) {
+    formData.append("description", payload.description.trim());
+  }
+  if (payload.severity && payload.severity.trim()) {
+    formData.append("severity", payload.severity.trim());
+  }
+  
+  // Handle evidence files - append each file individually
+  // Backend expects: evidence_files as a list
+  if (payload.evidenceFiles && payload.evidenceFiles.length > 0) {
     payload.evidenceFiles.forEach((file) => {
+      // Use the same field name for all files - FastAPI will collect them as a list
       formData.append("evidence_files", file);
     });
   }
-  const response = await api.post("/cleaning/reports", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return { data: response.data };
+
+  // Debug logging (remove in production)
+  if (import.meta.env.DEV) {
+    console.log("FormData contents:");
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+      } else {
+        console.log(`${key}: ${value}`);
+      }
+    }
+  }
+
+  // Don't set Content-Type header - let browser/Axios set it automatically with boundary
+  // Setting it manually will break multipart/form-data encoding
+  return api.post("/cleaning/reports", formData).then((response) => ({ data: response.data }));
+}
+
+export async function getCleaningTaskDetail(checklistId: number): Promise<any> {
+  const response = await api.get(`/cleaning/tasks/${checklistId}/detail`);
+  return response.data;
 }
 
 export async function listCleaningReports(params?: {

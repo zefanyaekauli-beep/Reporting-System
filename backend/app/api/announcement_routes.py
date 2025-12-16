@@ -97,7 +97,7 @@ def mark_read(
         if not target:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Announcement not found for this user"
+                detail="Announcement not found for this user" 
             )
         return {"status": "ok", "message": "Announcement marked as read"}
     except HTTPException:

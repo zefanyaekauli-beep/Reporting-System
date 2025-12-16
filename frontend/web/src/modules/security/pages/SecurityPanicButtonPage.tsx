@@ -18,19 +18,38 @@ export function SecurityPanicButtonPage() {
   const [message, setMessage] = useState("");
 
   const handlePanic = async () => {
+    console.log("🚨 [handlePanic] === PANIC BUTTON PRESSED ===");
+    console.log("🚨 [handlePanic] Site ID:", siteId);
+    console.log("🚨 [handlePanic] Selected Site:", selectedSite);
+    console.log("🚨 [handlePanic] Message:", message || "(empty)");
+    
     if (!confirm(t("security.confirmPanic"))) {
+      console.log("⚠️ [handlePanic] User cancelled panic alert");
       return;
     }
 
+    console.log("✅ [handlePanic] User confirmed panic alert");
     setTriggering(true);
+    
     try {
+      console.log("📍 [handlePanic] === STEP 1: Getting GPS Location ===");
+      
       // Get GPS coordinates synchronously before sending
       let latitude = "0";
       let longitude = "0";
       let locationText = "";
 
       if (navigator.geolocation) {
+        console.log("📍 [handlePanic] Geolocation API available");
+        
         try {
+          console.log("📍 [handlePanic] Requesting GPS position...");
+          console.log("📍 [handlePanic] Options:", {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+          });
+          
           const position = await new Promise<GeolocationPosition>((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(
               resolve,
@@ -47,7 +66,14 @@ export function SecurityPanicButtonPage() {
           longitude = position.coords.longitude.toString();
           locationText = `Lat: ${latitude}, Lng: ${longitude}`;
           
+          console.log("✅ [handlePanic] GPS location obtained:");
+          console.log("📍 Latitude:", latitude);
+          console.log("📍 Longitude:", longitude);
+          console.log("📍 Accuracy:", position.coords.accuracy, "meters");
+          console.log("📍 Location Text:", locationText);
+          
           // Also update location in database for tracking
+          console.log("📍 [handlePanic] Updating location in database...");
           try {
             const { updateLocation } = await import("../../../api/securityApi");
             await updateLocation({
@@ -56,34 +82,75 @@ export function SecurityPanicButtonPage() {
               longitude,
               accuracy: String(position.coords.accuracy || 0),
             });
+            console.log("✅ [handlePanic] Location updated in database");
           } catch (locErr) {
             // Ignore location update errors, panic alert is more important
-            console.warn("Failed to update location:", locErr);
+            console.warn("⚠️ [handlePanic] Failed to update location (continuing anyway):", locErr);
           }
-        } catch (error) {
-          console.warn("GPS not available:", error);
+        } catch (error: any) {
+          console.error("❌ [handlePanic] GPS error:");
+          console.error("❌ Error name:", error?.name);
+          console.error("❌ Error code:", error?.code);
+          console.error("❌ Error message:", error?.message);
+          console.error("❌ Full error:", error);
+          
           showToast(t("security.gpsNotAvailableWarning"), "warning");
+          console.log("⚠️ [handlePanic] Continuing with default location (0, 0)");
         }
+      } else {
+        console.error("❌ [handlePanic] Geolocation API not available in this browser");
       }
 
-      await triggerPanicAlert({
+      console.log("🚨 [handlePanic] === STEP 2: Sending Panic Alert ===");
+      
+      const panicPayload = {
         site_id: siteId,
-        alert_type: "panic",
+        alert_type: "panic" as const,
         latitude,
         longitude,
         location_text: locationText || selectedSite?.name || "Unknown",
         message: message || undefined,
-      });
+      };
+      
+      console.log("🚨 [handlePanic] Panic alert payload:", panicPayload);
+      console.log("🚨 [handlePanic] Calling triggerPanicAlert API...");
+      
+      const response = await triggerPanicAlert(panicPayload);
+      
+      console.log("✅ [handlePanic] Panic alert sent successfully!");
+      console.log("✅ [handlePanic] Response:", response);
 
       showToast(t("security.panicSent"), "success");
       setMessage("");
+      
+      console.log("🎉 [handlePanic] === PANIC ALERT COMPLETED ===");
     } catch (err: any) {
+      console.error("❌ [handlePanic] === ERROR OCCURRED ===");
+      console.error("❌ [handlePanic] Error object:", err);
+      console.error("❌ [handlePanic] Error details:", {
+        message: err?.message,
+        response: err?.response,
+        responseData: err?.response?.data,
+        responseDetail: err?.response?.data?.detail,
+        stack: err?.stack
+      });
+      
       console.error("Failed to trigger panic:", err);
       showToast(t("security.panicFailed"), "error");
     } finally {
+      console.log("🔚 [handlePanic] Setting triggering to false");
       setTriggering(false);
+      console.log("🏁 [handlePanic] handlePanic function completed");
     }
   };
+
+  console.log("🔄 [SecurityPanicButtonPage] Component rendered");
+  console.log("🔄 Current state:", {
+    triggering,
+    messageLength: message.length,
+    siteId,
+    siteName: selectedSite?.name
+  });
 
   return (
     <MobileLayout title={t("security.panicButton")}>
@@ -135,7 +202,11 @@ export function SecurityPanicButtonPage() {
           </label>
           <textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              const newMessage = e.target.value;
+              console.log("✏️ [Message Input] Changed:", newMessage.substring(0, 50) + (newMessage.length > 50 ? "..." : ""));
+              setMessage(newMessage);
+            }}
             placeholder="Jelaskan situasi darurat..."
             style={{
               width: "100%",
@@ -152,7 +223,10 @@ export function SecurityPanicButtonPage() {
 
         {/* Panic Button */}
         <button
-          onClick={handlePanic}
+          onClick={() => {
+            console.log("🔴 [Panic Button] Button clicked!");
+            handlePanic();
+          }}
           disabled={triggering}
           style={{
             width: "100%",
@@ -172,7 +246,6 @@ export function SecurityPanicButtonPage() {
         >
           {triggering ? "MENGIRIM..." : "🚨 PANIC ALERT 🚨"}
         </button>
-
         {/* Info */}
         <div
           style={{
@@ -200,4 +273,3 @@ export function SecurityPanicButtonPage() {
     </MobileLayout>
   );
 }
-

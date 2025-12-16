@@ -8,6 +8,7 @@ import { useAuthStore } from "../../../stores/authStore";
 import { getGreeting } from "../../../utils/getGreeting";
 import { useTranslation } from "../../../i18n/useTranslation";
 import ThemeToggle from "./ui/ThemeToggle";
+import { UserRoleBadge } from "../../../components/UserRoleBadge";
 
 interface MobileLayoutProps {
   title: string;
@@ -57,8 +58,13 @@ export function MobileLayout({
     >
       {/* Header - GuardsPro style dark navy */}
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-slate-200/20 bg-slate-900 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950" style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}>
-        <div className="text-base font-bold text-white">
-          {greeting}
+        <div className="flex items-center gap-2">
+          <div className="text-base font-bold text-white">
+            {greeting}
+          </div>
+          <div className="hidden sm:block">
+            <UserRoleBadge />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />

@@ -54,6 +54,32 @@ const menu = [
     label: "Cleaning",
     items: [{ label: "Cleaning Dashboard", to: "/supervisor/cleaning/dashboard" }],
   },
+  {
+    label: "KTA",
+    items: [{ label: "KTA Management", to: "/supervisor/kta" }],
+  },
+  {
+    label: "Admin",
+    items: [
+      { label: "Roles & Permissions", to: "/supervisor/admin/roles" },
+      { label: "Audit Logs", to: "/supervisor/admin/audit-logs" },
+    ],
+  },
+  {
+    label: "Patrol",
+    items: [
+      { label: "Patrol Targets", to: "/supervisor/patrol/targets" },
+      { label: "Patrol Teams", to: "/supervisor/patrol/teams" },
+    ],
+  },
+  {
+    label: "Calendar",
+    items: [{ label: "Activity Calendar", to: "/supervisor/calendar" }],
+  },
+  {
+    label: "Analytics",
+    items: [{ label: "Activity Heatmap", to: "/supervisor/heatmap" }],
+  },
 ];
 
 const Sidebar: React.FC = () => {

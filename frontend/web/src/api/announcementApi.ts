@@ -39,6 +39,61 @@ export interface AnnouncementCreatePayload {
   require_ack?: boolean;
 }
 
+export interface PanicAlert {
+  id: number;
+  site_id: number;
+  user_id: number;
+  alert_type: string;
+  latitude: string;
+  longitude: string;
+  location_text?: string | null;
+  message?: string | null;
+  status: string;
+  resolution_notes?: string | null;
+  created_at: string;
+}
+
+export interface CreatePanicAlertPayload {
+  site_id: number;
+  alert_type?: string;
+  latitude: string;
+  longitude: string;
+  location_text?: string;
+  message?: string;
+}
+
+export async function triggerPanicAlert(
+  payload: CreatePanicAlertPayload
+): Promise<{ data: PanicAlert }> {
+  const response = await api.post("/security/panic/alert", payload);
+  return { data: response.data };
+}
+
+export async function listPanicAlerts(params?: {
+  site_id?: number;
+  status?: string;
+}): Promise<{ data: PanicAlert[] }> {
+  const response = await api.get("/security/panic/alerts", { params });
+  return { data: response.data };
+}
+
+export async function acknowledgePanicAlert(
+  alertId: number
+): Promise<{ message: string; alert: PanicAlert }> {
+  const response = await api.post(`/security/panic/alerts/${alertId}/acknowledge`);
+  return response.data;
+}
+
+export async function resolvePanicAlert(
+  alertId: number,
+  resolutionNotes: string
+): Promise<{ message: string; alert: PanicAlert }> {
+  // Backend expects resolution_notes as string in body (Body(...) in FastAPI)
+  // FastAPI Body(...) expects the raw string value, not JSON object
+  const response = await api.post(`/security/panic/alerts/${alertId}/resolve`, resolutionNotes);
+  return response.data;
+}
+
 export async function fetchMyAnnouncements(
   onlyUnread: boolean = false,
   limit: number = 20
@@ -54,7 +109,7 @@ export async function fetchMyAnnouncements(
 }
 
 export async function markAnnouncementRead(id: number): Promise<void> {
-  await api.post(`/announcements/${id}/read`);
+  await api.post(`/announcements/${id}/read`); 
 }
 
 export async function markAnnouncementAck(id: number): Promise<void> {
@@ -64,7 +119,7 @@ export async function markAnnouncementAck(id: number): Promise<void> {
 export async function createAnnouncement(
   payload: AnnouncementCreatePayload
 ): Promise<Announcement> {
-  const response = await api.post("/announcements", payload);
+  const response = await api.post("/announcements/", payload);
   return response.data;
 }
 
@@ -72,7 +127,7 @@ export async function listAnnouncements(
   division?: string,
   limit: number = 50
 ): Promise<Announcement[]> {
-  const response = await api.get("/announcements", {
+  const response = await api.get("/announcements/", {
     params: { division, limit },
   });
   // Ensure response is array
@@ -80,5 +135,5 @@ export async function listAnnouncements(
     return response.data;
   }
   return [];
-}
+} 
 

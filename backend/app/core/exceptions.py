@@ -87,10 +87,16 @@ def handle_exception(e: Exception, logger, context: Optional[str] = None) -> HTT
         return e
     
     # Log full traceback for unexpected errors
+    # Avoid serializing objects that may contain UploadFile
+    try:
+        traceback_str = traceback.format_exc()
+    except Exception:
+        traceback_str = "Error serializing traceback"
+    
     logger.error(
         f"Unexpected error{error_context}: {str(e)}",
         exc_info=True,
-        extra={"traceback": traceback.format_exc()},
+        extra={"traceback": traceback_str},
     )
     
     # Return generic error (don't expose internal details)

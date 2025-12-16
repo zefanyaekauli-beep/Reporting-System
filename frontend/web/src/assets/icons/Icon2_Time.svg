@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 841.89 595.28">
+  <!-- Generator: Adobe Illustrator 29.7.1, SVG Export Plug-In . SVG Version: 2.1.1 Build 8)  -->
+  <defs>
+    <style>
+      .st0 {
+        stroke-width: 3px;
+      }
+
+      .st0, .st1, .st2 {
+        fill: #fcd01a;
+      }
+
+      .st0, .st2 {
+        stroke: #fcd01a;
+        stroke-miterlimit: 10;
+      }
+
+      .st3 {
+        fill: #0a2c4b;
+      }
+
+      .st4 {
+        fill: #ee2e24;
+      }
+
+      .st2 {
+        stroke-width: 2px;
+      }
+    </style>
+  </defs>
+  <circle class="st3" cx="420.94" cy="297.64" r="219.12"/>
+  <circle class="st3" cx="420.94" cy="297.64" r="173.79"/>
+  <circle class="st0" cx="420.94" cy="297.64" r="141"/>
+  <circle class="st1" cx="420.94" cy="297.64" r="138.57"/>
+  <path class="st2" d="M420.94,123.84c-95.98,0-173.79,77.81-173.79,173.79s77.81,173.79,173.79,173.79,173.79-77.81,173.79-173.79-77.81-173.79-173.79-173.79ZM420.94,468.7c-94.47,0-171.06-76.59-171.06-171.06s76.59-171.06,171.06-171.06,171.06,76.59,171.06,171.06-76.59,171.06-171.06,171.06Z"/>
+  <g>
+    <circle class="st4" cx="420.94" cy="297.64" r="6.74"/>
+    <polygon class="st4" points="422.55 183.95 419.34 183.95 417.57 329.47 424.32 329.47 422.55 183.95"/>
+    <polygon class="st4" points="365.79 353.34 368.11 355.56 436.42 286.78 431.55 282.12 365.79 353.34"/>
+    <rect class="st4" x="417.84" y="161.71" width="6.21" height="19.04" rx=".97" ry=".97"/>
+    <rect class="st4" x="507.22" y="198.74" width="6.21" height="19.04" rx=".97" ry=".97" transform="translate(296.73 -299.86) rotate(45)"/>
+    <rect class="st4" x="544.25" y="288.12" width="6.21" height="19.04" rx=".97" ry=".97" transform="translate(844.99 -249.71) rotate(90)"/>
+    <rect class="st4" x="507.22" y="377.5" width="6.21" height="19.04" rx=".97" ry=".97" transform="translate(1144.85 299.83) rotate(135)"/>
+    <rect class="st4" x="417.84" y="414.53" width="6.21" height="19.04" rx=".97" ry=".97" transform="translate(841.89 848.09) rotate(180)"/>
+    <rect class="st4" x="328.46" y="377.5" width="6.21" height="19.04" rx=".97" ry=".97" transform="translate(292.35 895.14) rotate(-135)"/>
+    <rect class="st4" x="291.43" y="288.12" width="6.21" height="19.04" rx=".97" ry=".97" transform="translate(-3.1 592.18) rotate(-90)"/>
+    <rect class="st4" x="328.46" y="198.74" width="6.21" height="19.04" rx=".97" ry=".97" transform="translate(-50.15 295.45) rotate(-45)"/>
+  </g>
+</svg>

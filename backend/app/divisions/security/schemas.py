@@ -49,14 +49,16 @@ class SecurityReportOut(BaseModel):
     company_id: int
     site_id: int
     user_id: int
+    division: Optional[str] = None
     report_type: str
-    location_id: Optional[int]
-    location_text: Optional[str]
+    location_id: Optional[int] = None
+    location_text: Optional[str] = None
+    zone_id: Optional[int] = None
     title: str
-    description: Optional[str]
-    severity: Optional[str]
+    description: Optional[str] = None
+    severity: Optional[str] = None
     status: str
-    evidence_paths: Optional[str]
+    evidence_paths: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -187,6 +189,9 @@ class ChecklistTemplateCreate(BaseModel):
     shift_type: Optional[str] = None
     items: List[dict] = []  # [{title, description, required, evidence_type, order}]
 
+class CreateChecklistRequest(BaseModel):
+    site_id: int
+
 # Legacy aliases for compatibility
 ChecklistItemOut = ChecklistItemBase
 ChecklistOut = ChecklistBase
@@ -248,6 +253,7 @@ class PanicAlertBase(BaseModel):
     location_text: Optional[str]
     message: Optional[str]
     status: str
+    resolution_notes: Optional[str] = None
     created_at: datetime
 
     class Config:

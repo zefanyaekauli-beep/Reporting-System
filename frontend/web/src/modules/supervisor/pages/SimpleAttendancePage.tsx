@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { listAttendance, AttendanceRecord } from "../../../api/supervisorApi";
 import { theme } from "../../shared/components/theme";
+import * as XLSX from "xlsx";
 
 const SimpleAttendancePage: React.FC = () => {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -11,6 +12,7 @@ const SimpleAttendancePage: React.FC = () => {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [roleType, setRoleType] = useState<string>("");
+  const [exporting, setExporting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -34,6 +36,65 @@ const SimpleAttendancePage: React.FC = () => {
   useEffect(() => {
     load();
   }, []);
+
+  const exportToExcel = () => {
+    if (records.length === 0) {
+      setErrorMsg("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    setExporting(true);
+    try {
+      // Prepare data for Excel
+      const excelData = records.map((r) => ({
+        "Date": new Date(r.checkin_time).toLocaleDateString(),
+        "Officer": r.user_name || `User #${r.user_id}`,
+        "Site": r.site_name,
+        "Division": r.role_type,
+        "Shift": r.shift || "-",
+        "Check-in": new Date(r.checkin_time).toLocaleTimeString(),
+        "Check-out": r.checkout_time ? new Date(r.checkout_time).toLocaleTimeString() : "-",
+        "Overtime": r.is_overtime ? "Yes" : "No",
+        "Status": r.status,
+      }));
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // Set column widths
+      const colWidths = [
+        { wch: 12 }, // Date
+        { wch: 20 }, // Officer
+        { wch: 20 }, // Site
+        { wch: 12 }, // Division
+        { wch: 10 }, // Shift
+        { wch: 12 }, // Check-in
+        { wch: 12 }, // Check-out
+        { wch: 10 }, // Overtime
+        { wch: 12 }, // Status
+      ];
+      ws["!cols"] = colWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+
+      // Generate filename
+      const divisionName = roleType || "All";
+      const fromDate = from || "all";
+      const toDate = to || "all";
+      const name = `SimpleAttendance_${divisionName}_${fromDate}_${toDate}`.replace(/[^a-z0-9_\-]/gi, "_");
+      const filename = `${name}.xlsx`;
+      // Write file
+      XLSX.writeFile(wb, filename);
+      setErrorMsg("");
+    } catch (err: any) {
+      console.error("Export Excel error:", err);
+      setErrorMsg("Gagal mengekspor ke Excel");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -145,6 +206,27 @@ const SimpleAttendancePage: React.FC = () => {
           }}
         >
           Apply
+        </button>
+        <button
+          onClick={exportToExcel}
+          disabled={exporting || records.length === 0}
+          style={{
+            padding: "8px 16px",
+            borderRadius: theme.radius.pill,
+            border: `1px solid ${theme.colors.success}`,
+            backgroundColor: exporting || records.length === 0 ? theme.colors.border : theme.colors.success,
+            color: "#fff",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: exporting || records.length === 0 ? "not-allowed" : "pointer",
+            opacity: exporting || records.length === 0 ? 0.6 : 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+          title="Export to Excel"
+        >
+          📊 Excel
         </button>
       </div>
 

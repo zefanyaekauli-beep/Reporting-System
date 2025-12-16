@@ -33,31 +33,33 @@ export function LoginPage() {
       console.log("✅ Login successful! Response:", res);
       console.log("Response fields:", {
         access_token: res?.access_token,
-        division: res?.division,
+        division: res?.user?.division,
         role: res?.role,
       });
       
-      if (!res || !res.access_token || !res.division) {
+      if (!res || !res.access_token || !res?.user?.division) {
         console.error("❌ Invalid response structure:", res);
         setError("Invalid response from server");
         return;
       }
       
-      console.log("Setting auth state...");
       // Use user info from response if available
       // Ensure division matches Division type
-      const divisionMap: Record<string, "security" | "cleaning" | "parking"> = {
+      const divisionMap: Record<string, "security" | "cleaning" | "parking" | "driver"> = {
         security: "security",
         cleaning: "cleaning",
         parking: "parking",
+        driver: "driver",
       };
-      const division = divisionMap[res.division?.toLowerCase()] || "security";
+      const division = divisionMap[res.division?.toLowerCase()] || 
+                       divisionMap[res.user?.division?.toLowerCase()] || 
+                       "security";
       
-      const userInfo = res.user || {
-        id: 1,
-        username,
+      const userInfo = {
+        id: res.user?.id || 1,
+        username: res.user?.username || username,
         division: division,
-        role: res.role,
+        role: res.role || res.user?.role || "field",
       };
       
       setAuth({
@@ -65,12 +67,8 @@ export function LoginPage() {
         user: userInfo,
       });
       
-      console.log("✅ Auth state updated");
-      console.log("Current auth state:", useAuthStore.getState());
-      
       // Navigate based on role
       if (res.role === "supervisor" || res.role === "admin") {
-        console.log("Navigating to supervisor dashboard");
         navigate("/supervisor/dashboard");
       } else {
         // Guard/user: navigate to division dashboard first
@@ -87,7 +85,6 @@ export function LoginPage() {
           // Fallback to division dashboard
           targetPath = `/${res.division}/dashboard`;
         }
-        console.log("Navigating to:", targetPath);
         navigate(targetPath);
       }
     } catch (err: any) {

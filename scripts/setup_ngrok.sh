@@ -18,16 +18,48 @@ if ! command -v ngrok &> /dev/null; then
     echo -e "${YELLOW}⚠️  ngrok is not installed${NC}"
     echo ""
     echo "Installation options:"
-    echo "1. macOS (Homebrew): brew install ngrok/ngrok/ngrok"
-    echo "2. Download from: https://ngrok.com/download"
-    echo "3. Or use: npm install -g ngrok"
-    echo ""
-    read -p "Do you want to install ngrok via Homebrew? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        brew install ngrok/ngrok/ngrok
+    
+    # Detect OS
+    if [ -f /etc/arch-release ]; then
+        echo "1. Arch Linux (AUR): yay -S ngrok-bin (or use AUR helper)"
+        echo "2. Download from: https://ngrok.com/download"
+        echo "3. Or use: npm install -g ngrok"
+        echo ""
+        read -p "Do you want to install ngrok from AUR? (requires yay) (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if command -v yay &> /dev/null; then
+                yay -S ngrok-bin
+            elif command -v paru &> /dev/null; then
+                paru -S ngrok-bin
+            else
+                echo -e "${YELLOW}⚠️  yay or paru not found${NC}"
+                echo "   Install yay: https://github.com/Jguer/yay"
+                echo "   Or download ngrok manually from: https://ngrok.com/download"
+                exit 1
+            fi
+        else
+            echo -e "${YELLOW}Download ngrok manually from: https://ngrok.com/download${NC}"
+            exit 1
+        fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "1. macOS (Homebrew): brew install ngrok/ngrok/ngrok"
+        echo "2. Download from: https://ngrok.com/download"
+        echo "3. Or use: npm install -g ngrok"
+        echo ""
+        read -p "Do you want to install ngrok via Homebrew? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            brew install ngrok/ngrok/ngrok
+        else
+            echo -e "${RED}Please install ngrok manually and run this script again${NC}"
+            exit 1
+        fi
     else
-        echo -e "${RED}Please install ngrok manually and run this script again${NC}"
+        echo "1. Download from: https://ngrok.com/download"
+        echo "2. Or use: npm install -g ngrok"
+        echo ""
+        echo -e "${YELLOW}Please install ngrok manually and run this script again${NC}"
         exit 1
     fi
 fi

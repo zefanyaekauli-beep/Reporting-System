@@ -46,23 +46,80 @@ async def api_exception_handler(request: Request, exc: BaseAPIException):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors"""
-    logger.warning(f"Validation error: {exc.errors()}")
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors(), "error_code": "VALIDATION_ERROR"},
-    )
+    from fastapi import UploadFile
+    import json
+    
+    # Safely serialize validation errors, avoiding UploadFile objects
+    try:
+        errors = exc.errors()
+        
+        def clean_value(v):
+            """Recursively clean values to make them JSON serializable"""
+            if isinstance(v, UploadFile):
+                return f"<UploadFile: {v.filename or 'unnamed'}>"
+            elif isinstance(v, (str, int, float, bool, type(None))):
+                return v
+            elif isinstance(v, (list, tuple)):
+                return [clean_value(item) for item in v]
+            elif isinstance(v, dict):
+                return {k: clean_value(val) for k, val in v.items()}
+            else:
+                # Try to serialize, fallback to string representation
+                try:
+                    json.dumps(v)
+                    return v
+                except (TypeError, ValueError):
+                    return str(v)
+        
+        # Clean all errors
+        clean_errors = []
+        for error in errors:
+            clean_error = {k: clean_value(v) for k, v in error.items()}
+            clean_errors.append(clean_error)
+        
+        logger.warning(f"Validation error: {len(clean_errors)} errors")
+        # Log each error for debugging
+        for idx, error in enumerate(clean_errors):
+            logger.warning(
+                f"Validation error #{idx+1}: loc={error.get('loc', [])}, "
+                f"msg={error.get('msg', 'N/A')}, type={error.get('type', 'N/A')}"
+            )
+        
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={"detail": clean_errors, "error_code": "VALIDATION_ERROR"},
+        )
+    except Exception as e:
+        # Fallback if we can't serialize errors
+        logger.error(f"Error serializing validation errors: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "detail": "Validation error occurred. Please check your request format.",
+                "error_code": "VALIDATION_ERROR",
+            },
+        )
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """Handle unexpected exceptions"""
     import traceback
     # LOG THE REAL ERROR with full stacktrace
+    # Avoid serializing request body which may contain UploadFile objects
+    try:
+        error_repr = repr(exc)
+        traceback_str = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    except Exception as log_err:
+        # If we can't serialize the exception, just log the type and message
+        error_repr = f"{type(exc).__name__}: {str(exc)}"
+        traceback_str = f"Error serializing exception: {str(log_err)}"
+    
     logger.error(
         "Unhandled error on %s %s: %s\n%s",
         request.method,
         request.url.path,
-        repr(exc),
-        "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
+        error_repr,
+        traceback_str,
     )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

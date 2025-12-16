@@ -8,6 +8,10 @@ import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../../../stores/authStore";
 import ThemeToggle from "../../shared/components/ui/ThemeToggle";
 import { AppIcons, IconKey } from "../../../icons/AppIcons";
+import { usePermissions } from "../../../hooks/usePermissions";
+import { RoleBasedAccess } from "../../../components/RoleBasedAccess";
+import { UserRoleBadge } from "../../../components/UserRoleBadge";
+import { useRoleBasedMenuItems } from "../../../components/RoleBasedMenuItems";
 // Design system - using direct Tailwind classes
 
 const menuGroups = [
@@ -38,6 +42,7 @@ const menuGroups = [
     label: "Tasks & Checklists",
     items: [
       { label: "Tasks & Checklists", to: "/supervisor/checklists", icon: "tasks" as IconKey },
+      { label: "Checklist Templates", to: "/supervisor/checklist-templates", icon: "tasks" as IconKey },
     ],
   },
   {
@@ -61,6 +66,20 @@ const menuGroups = [
       { label: "Sites", to: "/supervisor/sites", icon: "dashboard" as IconKey },
     ],
   },
+  {
+    label: "Admin",
+    items: [
+      { label: "Master Data", to: "/supervisor/admin/master-data", icon: "dashboard" as IconKey },
+      { label: "Roles & Permissions", to: "/supervisor/admin/roles", icon: "officers" as IconKey },
+      { label: "Audit Logs", to: "/supervisor/admin/audit-logs", icon: "reports" as IconKey },
+    ],
+  },
+  {
+    label: "Analytics",
+    items: [
+      { label: "Activity Heatmap", to: "/supervisor/heatmap", icon: "dashboard" as IconKey },
+    ],
+  },
 ];
 
 const SupervisorLayout: React.FC = () => {
@@ -68,6 +87,8 @@ const SupervisorLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, clear: clearAuth } = useAuthStore();
+  const { role, isAdmin } = usePermissions();
+  const roleBasedMenuItems = useRoleBasedMenuItems();
   const userName = user?.username || "Supervisor";
   
   const isDashboard = location.pathname === "/supervisor" || location.pathname === "/supervisor/";
@@ -127,6 +148,39 @@ const SupervisorLayout: React.FC = () => {
             </ul>
           </div>
         ))}
+        
+        {/* Role-based Additional Menu Items */}
+        {roleBasedMenuItems.length > 0 && (
+          <div>
+            <div className="mb-2 text-[11px] uppercase tracking-[0.1em] text-slate-500">
+              Additional Features
+            </div>
+            <ul className="space-y-1">
+              {roleBasedMenuItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <li key={item.path}>
+                    <NavLink
+                      to={item.path}
+                      onClick={() => setMobileOpen(false)}
+                      className={({ isActive: navIsActive }) =>
+                        `flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${
+                          navIsActive || isActive
+                            ? `bg-blue-50 text-blue-700 border-l-2 border-blue-500`
+                            : `text-slate-700 hover:bg-slate-50 hover:text-slate-900`
+                        }`
+                      }
+                    >
+                      {item.icon && <span className="text-base flex-shrink-0">{item.icon}</span>}
+                      <span className="font-medium">{item.label}</span>
+                    </NavLink>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </nav>
 
       {/* User Profile & Logout */}
@@ -137,7 +191,9 @@ const SupervisorLayout: React.FC = () => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold truncate text-slate-900">{userName}</div>
-            <div className="text-xs text-slate-500">Supervisor</div>
+            <div className="flex items-center gap-2 mt-1">
+              <UserRoleBadge />
+            </div>
           </div>
         </div>
         <button

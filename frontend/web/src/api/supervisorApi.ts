@@ -86,6 +86,18 @@ export interface Site {
   name: string;
   address?: string;
   qr_code?: string;
+  lat?: number;
+  lng?: number;
+  geofence_radius_m?: number;
+}
+
+export interface SiteCreate {
+  name: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  geofence_radius_m?: number;
+  qr_code?: string;
 }
 
 export async function getOverview(): Promise<Overview> {
@@ -156,6 +168,15 @@ export async function listSites(params?: {
 export async function createSite(payload: SiteCreate): Promise<Site> {
   const response = await api.post("/supervisor/sites", payload);
   return response.data;
+}
+
+export async function updateSite(id: number, payload: Partial<SiteCreate>): Promise<Site> {
+  const response = await api.patch(`/supervisor/sites/${id}`, payload);
+  return response.data;
+}
+
+export async function deleteSite(id: number): Promise<void> {
+  await api.delete(`/supervisor/sites/${id}`);
 }
 
 export function getSiteQrCodeUrl(siteId: number): string {
@@ -291,6 +312,7 @@ export async function listChecklists(params?: {
   company_id?: number;
   page?: number;
   limit?: number;
+  search?: string;
 }): Promise<{ items: ChecklistTask[]; total: number; page: number; limit: number; pages: number }> {
   const response = await api.get("/supervisor/checklists", { params });
   // Handle paginated response
@@ -347,7 +369,7 @@ export async function getShiftsCalendar(params: {
 }
 
 export async function createShift(payload: ShiftCreate): Promise<Shift> {
-  const response = await api.post("/supervisor/shifts", payload);
+  const response = await api.post("/supervisor/shifts/", payload);
   return response.data;
 }
 
@@ -358,5 +380,342 @@ export async function updateShift(shiftId: number, payload: ShiftUpdate): Promis
 
 export async function deleteShift(shiftId: number): Promise<void> {
   await api.delete(`/supervisor/shifts/${shiftId}`);
+}
+
+// ========== Checklist Template Management ==========
+
+export interface ChecklistTemplateItem {
+  id: number;
+  template_id: number;
+  order: number;
+  title: string;
+  description?: string | null;
+  required: boolean;
+  evidence_type: string;
+  kpi_key?: string | null;
+  answer_type?: string | null;
+  photo_required: boolean;
+}
+
+export interface ChecklistTemplate {
+  id: number;
+  company_id: number;
+  site_id?: number | null;
+  division: string;
+  name: string;
+  role?: string | null;
+  shift_type?: string | null;
+  is_active: boolean;
+  site_name?: string | null;
+  items: ChecklistTemplateItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistTemplateItemCreate {
+  order: number;
+  title: string;
+  description?: string | null;
+  required: boolean;
+  evidence_type: string;
+  kpi_key?: string | null;
+  answer_type?: string | null;
+  photo_required: boolean;
+  auto_complete_rule?: any;
+}
+
+export interface ChecklistTemplateCreate {
+  name: string;
+  site_id?: number | null;
+  division: string;
+  role?: string | null;
+  shift_type?: string | null;
+  is_active: boolean;
+  items: ChecklistTemplateItemCreate[];
+}
+
+export interface ChecklistTemplateUpdate {
+  name?: string;
+  site_id?: number | null;
+  division?: string;
+  role?: string | null;
+  shift_type?: string | null;
+  is_active?: boolean;
+  items?: ChecklistTemplateItemCreate[];
+}
+
+export async function listChecklistTemplates(params?: {
+  division?: string;
+  site_id?: number;
+  is_active?: boolean;
+  company_id?: number;
+}): Promise<ChecklistTemplate[]> {
+  const response = await api.get("/supervisor/checklist-templates", { params });
+  return response.data;
+}
+
+export async function getChecklistTemplate(templateId: number): Promise<ChecklistTemplate> {
+  const response = await api.get(`/supervisor/checklist-templates/${templateId}`);
+  return response.data;
+}
+
+export async function createChecklistTemplate(payload: ChecklistTemplateCreate): Promise<ChecklistTemplate> {
+  const response = await api.post("/supervisor/checklist-templates", payload);
+  return response.data;
+}
+
+export async function updateChecklistTemplate(
+  templateId: number,
+  payload: ChecklistTemplateUpdate
+): Promise<ChecklistTemplate> {
+  const response = await api.put(`/supervisor/checklist-templates/${templateId}`, payload);
+  return response.data;
+}
+
+export async function deleteChecklistTemplate(templateId: number): Promise<void> {
+  await api.delete(`/supervisor/checklist-templates/${templateId}`);
+}
+
+// ---- Control Center ----
+
+export interface ControlCenterStatus {
+  total_on_duty: number;
+  total_active_patrols: number;
+  total_active_incidents: number;
+  total_panic_alerts: number;
+  total_dispatch_tickets: number;
+  last_updated: string;
+}
+
+export interface ActivePatrol {
+  id: number;
+  user_id: number;
+  user_name: string;
+  site_id: number;
+  site_name: string;
+  start_time: string;
+  area_text?: string | null;
+  current_location?: {
+    latitude: number;
+    longitude: number;
+    recorded_at: string;
+    accuracy?: number | null;
+  } | null;
+  duration_minutes?: number | null;
+}
+
+export interface ActiveIncident {
+  id: number;
+  title: string;
+  report_type: string;
+  severity?: string | null;
+  site_id: number;
+  site_name: string;
+  reported_by: string;
+  reported_at: string;
+  status: string;
+  location_text?: string | null;
+}
+
+export interface PanicAlert {
+  id: number;
+  user_id: number;
+  user_name: string;
+  site_id: number;
+  site_name: string;
+  alert_type: string;
+  latitude: string;
+  longitude: string;
+  message?: string | null;
+  status: string;
+  created_at: string;
+  acknowledged_at?: string | null;
+  resolved_at?: string | null;
+}
+
+export interface DispatchTicket {
+  id: number;
+  ticket_number: string;
+  site_id: number;
+  site_name: string;
+  incident_type: string;
+  priority: string;
+  status: string;
+  location: string;
+  latitude: string;
+  longitude: string;
+  description: string;
+  assigned_to_user_id?: number | null;
+  assigned_to_name?: string | null;
+  created_at: string;
+}
+
+export async function getControlCenterStatus(params?: {
+  site_id?: number;
+}): Promise<ControlCenterStatus> {
+  const response = await api.get("/control-center/status", { params });
+  return response.data;
+}
+
+export async function getActivePatrols(params?: {
+  site_id?: number;
+}): Promise<ActivePatrol[]> {
+  const response = await api.get("/control-center/active-patrols", { params });
+  return response.data;
+}
+
+export async function getActiveIncidents(params?: {
+  site_id?: number;
+}): Promise<ActiveIncident[]> {
+  const response = await api.get("/control-center/active-incidents", { params });
+  return response.data;
+}
+
+export async function getPanicAlerts(params?: {
+  site_id?: number;
+  status?: string;
+}): Promise<PanicAlert[]> {
+  const response = await api.get("/control-center/panic-alerts", { params });
+  return response.data;
+}
+
+export async function getDispatchTickets(params?: {
+  site_id?: number;
+  status?: string;
+}): Promise<DispatchTicket[]> {
+  const response = await api.get("/control-center/dispatch-tickets", { params });
+  return response.data;
+}
+
+// ========== Phase 11: Dashboard Enhancements ==========
+
+export interface ManpowerData {
+  area_id: number;
+  area_name: string;
+  area_type: "ZONE" | "SITE";
+  total_manpower: number;
+  active_manpower: number;
+  scheduled_manpower: number;
+  division: string | null;
+}
+
+export async function getManpower(params?: {
+  site_id?: number;
+  division?: string;
+  date_filter?: string;
+}): Promise<ManpowerData[]> {
+  const response = await api.get("/supervisor/manpower", { params });
+  return response.data;
+}
+
+export interface IncidentPerpetrator {
+  perpetrator_name: string;
+  perpetrator_type: string;
+  incident_count: number;
+  first_incident_date: string;
+  last_incident_date: string;
+  incidents: Array<{
+    id: number;
+    title: string;
+    report_type: string;
+    severity: string;
+    incident_level: string;
+    created_at: string;
+    site_id: number;
+  }>;
+}
+
+export async function getIncidentPerpetrators(params?: {
+  site_id?: number;
+  from_date?: string;
+  to_date?: string;
+}): Promise<IncidentPerpetrator[]> {
+  const response = await api.get("/supervisor/incidents/perpetrators", { params });
+  return response.data;
+}
+
+export interface PatrolTargetSummary {
+  target_id: number;
+  site_id: number;
+  site_name: string;
+  zone_id?: number | null;
+  zone_name?: string | null;
+  route_id?: number | null;
+  target_date: string;
+  target_checkpoints: number;
+  completed_checkpoints: number;
+  completion_percentage: number;
+  status: string;
+}
+
+export async function getPatrolTargetsSummary(params?: {
+  site_id?: number;
+  target_date?: string;
+}): Promise<PatrolTargetSummary[]> {
+  const response = await api.get("/supervisor/patrol-targets", { params });
+  return response.data;
+}
+
+export interface UserRecap {
+  user_id: number;
+  user_name: string;
+  period_start: string;
+  period_end: string;
+  attendance: {
+    total_days: number;
+    total_hours: number;
+    overtime_count: number;
+    details: Array<{
+      date: string;
+      checkin: string;
+      checkout: string | null;
+      hours: number | null;
+      is_overtime: boolean;
+    }>;
+  };
+  patrols: {
+    total: number;
+    completed: number;
+    completion_rate: number;
+    details: Array<{
+      id: number;
+      date: string;
+      start_time: string;
+      end_time: string | null;
+      area: string | null;
+      status: string;
+    }>;
+  };
+  reports: {
+    total: number;
+    incidents: number;
+    details: Array<{
+      id: number;
+      title: string;
+      type: string;
+      severity: string;
+      date: string;
+    }>;
+  };
+  incidents_as_perpetrator: {
+    count: number;
+    details: Array<{
+      id: number;
+      title: string;
+      level: string;
+      date: string;
+    }>;
+  };
+}
+
+export async function getUserRecap(
+  user_id: number,
+  params: {
+    period_start: string;
+    period_end: string;
+  }
+): Promise<UserRecap> {
+  const response = await api.get(`/supervisor/users/${user_id}/recap`, { params });
+  return response.data;
 }
 

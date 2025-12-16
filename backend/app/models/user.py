@@ -42,6 +42,9 @@ class User(Base):
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     site_id = Column(Integer, ForeignKey("sites.id"), nullable=True, index=True)
     
-    # Relationships (optional, for future use)
-    # company = relationship("Company", back_populates="users")
-    # site = relationship("Site", back_populates="users")
+    # RBAC support (optional - can use role string or role_id FK)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=True, index=True)
+    
+    # Relationships
+    role_obj = relationship("Role", foreign_keys=[role_id], back_populates="users", lazy="select")
+    permissions = relationship("Permission", secondary="user_permissions", back_populates="users", lazy="select")

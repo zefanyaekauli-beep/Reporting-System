@@ -75,38 +75,103 @@ async def create_parking_report(
     title: str = Form(...),
     description: Optional[str] = Form(None),
     severity: Optional[str] = Form(None),
-    evidence_files: Optional[List[UploadFile]] = File(None),
+    evidence_files: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """Create a parking report."""
-    evidence_paths: List[str] = []
+    from app.core.logger import api_logger
+    
+    try:
+        api_logger.info(f"Creating parking report - user_id: {current_user.get('id')}, site_id: {site_id}, title: {title[:50] if title else 'None'}")
+        
+        # Validate required fields
+        if not title or not title.strip():
+            api_logger.warning("Title is missing or empty")
+            raise HTTPException(status_code=400, detail="Title is required")
+        if not report_type or not report_type.strip():
+            api_logger.warning("Report type is missing or empty")
+            raise HTTPException(status_code=400, detail="Report type is required")
+        
+        # Get user info
+        user_id = current_user.get("id")
+        company_id = current_user.get("company_id", 1)
+        
+        if not user_id:
+            api_logger.error("User ID not found in token")
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
+        api_logger.info(f"User info - user_id: {user_id}, company_id: {company_id}")
+        
+        evidence_paths: List[str] = []
 
-    if evidence_files:
-        for f in evidence_files:
-            filename = f"{int(datetime.utcnow().timestamp())}_{f.filename}"
-            path = f"{PARKING_REPORTS_DIR}/{filename}"
-            with open(path, "wb") as out:
-                content = await f.read()
-                out.write(content)
-            evidence_paths.append(path)
+        if evidence_files:
+            try:
+                for f in evidence_files:
+                    filename = f"{int(datetime.utcnow().timestamp())}_{f.filename}"
+                    path = f"{PARKING_REPORTS_DIR}/{filename}"
+                    with open(path, "wb") as out:
+                        content = await f.read()
+                        out.write(content)
+                    evidence_paths.append(path)
+                    api_logger.info(f"Saved evidence file: {path}")
+            except Exception as file_err:
+                # Log error without trying to serialize UploadFile objects
+                error_msg = str(file_err)
+                error_type = type(file_err).__name__
+                api_logger.error(
+                    f"Error saving evidence files: {error_type}: {error_msg}",
+                    exc_info=True
+                )
+                # Don't fail the whole request if file saving fails
+                pass
 
-    report = SecurityReport(
-        company_id=current_user.get("company_id", 1),
-        site_id=site_id,
-        user_id=current_user["id"],
-        report_type=report_type,
-        location_text=location_text,
-        title=title,
-        description=description,
-        severity=severity,
-        evidence_paths=",".join(evidence_paths) if evidence_paths else None,
-    )
+        try:
+            report = SecurityReport(
+                company_id=company_id,
+                site_id=site_id,
+                user_id=user_id,
+                division="PARKING",  # Explicitly set division
+                report_type=report_type,
+                location_text=location_text,
+                title=title,
+                description=description,
+                severity=severity,
+                evidence_paths=",".join(evidence_paths) if evidence_paths else None,
+            )
 
-    db.add(report)
-    db.commit()
-    db.refresh(report)
-    return report
+            db.add(report)
+            db.commit()
+            db.refresh(report)
+            api_logger.info(f"Parking report created successfully - report_id: {report.id}")
+            return report
+        except Exception as db_err:
+            db.rollback()
+            # Log error without trying to serialize complex objects
+            error_msg = str(db_err)
+            error_type = type(db_err).__name__
+            api_logger.error(
+                f"Database error creating parking report: {error_type}: {error_msg}",
+                exc_info=True
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to save report to database: {error_msg}"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Log error without trying to serialize UploadFile objects
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(
+            f"Unexpected error creating parking report: {error_type}: {error_msg}",
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"An internal error occurred. Please try again later."
+        )
 
 @router.get("/reports")
 def list_parking_reports(
@@ -120,6 +185,7 @@ def list_parking_reports(
     q = db.query(SecurityReport).filter(
         SecurityReport.company_id == current_user.get("company_id", 1),
         SecurityReport.user_id == current_user["id"],
+        SecurityReport.division == "PARKING",  # Filter by division
     )
 
     if site_id is not None:
@@ -145,6 +211,7 @@ def get_parking_report(
             SecurityReport.id == report_id,
             SecurityReport.company_id == current_user.get("company_id", 1),
             SecurityReport.user_id == current_user["id"],
+            SecurityReport.division == "PARKING",  # Filter by division
         )
         .first()
     )
@@ -170,6 +237,7 @@ def export_parking_report_pdf(
             SecurityReport.id == report_id,
             SecurityReport.company_id == current_user.get("company_id", 1),
             SecurityReport.user_id == current_user["id"],
+            SecurityReport.division == "PARKING",  # Filter by division
         )
         .first()
     )
@@ -222,6 +290,7 @@ def export_parking_reports_summary_pdf(
     q = db.query(SecurityReport).filter(
         SecurityReport.company_id == current_user.get("company_id", 1),
         SecurityReport.user_id == current_user["id"],
+        SecurityReport.division == "PARKING",  # Filter by division
     )
 
     if site_id is not None:

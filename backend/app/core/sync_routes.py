@@ -2,12 +2,15 @@
 
 from datetime import datetime, timedelta
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from app.core.database import get_db
 from app.core.offline_models import Device, ClientEvent
+from app.api.deps import get_current_user, require_supervisor
+from app.core.logger import api_logger
+from fastapi import HTTPException
 from app.divisions.security.models import Checklist, ChecklistItem, ChecklistStatus, ChecklistItemStatus
 from app.divisions.cleaning.models import CleaningZone
 import math
@@ -116,6 +119,36 @@ def validate_gps_anomalies(
                 anomalies["out_of_zone"] = True
     
     return anomalies
+
+@router.post("/queue/process")
+def process_sync_queue(
+    limit: int = Query(50, le=100),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_supervisor),
+):
+    """Process pending sync queue items (admin/supervisor only)."""
+    from app.services.sync_service import SyncService
+    
+    try:
+        sync_service = SyncService()
+        result = sync_service.process_pending_sync_items(db, limit=limit)
+        
+        return {
+            "message": "Sync queue processed",
+            "processed": result["processed"],
+            "failed": result["failed"],
+            "total": result["total"],
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error processing sync queue: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process sync queue: {error_msg}"
+        )
+
 
 @router.post("/events", response_model=SyncResponse)
 def sync_events(
@@ -403,4 +436,32 @@ def get_zones_for_sync(
         }
         for zone in zones
     ]
+
+
+@router.post("/queue/process")
+def process_sync_queue(
+    limit: int = Query(50, description="Maximum items to process"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Process pending sync queue items."""
+    try:
+        from app.services.sync_service import SyncService
+        
+        user_id = current_user.get("id")
+        
+        sync_service = SyncService()
+        result = sync_service.process_sync_queue(db, user_id, limit)
+        
+        api_logger.info(f"Processed {result['processed_count']} sync items for user {user_id}")
+        return result
+        
+    except Exception as e:
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error processing sync queue: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process sync queue: {error_msg}"
+        )
 

@@ -109,6 +109,19 @@ export async function scanQRAttendance(payload: {
   is_valid_location: boolean;
   message: string;
 }> {
+
+  console.log("=== scanQRAttendance() CALLED ===");
+  console.log("Payload received:", payload);
+  console.log("Payload fields:", {
+    qr_data: payload.qr_data,
+    role_type: payload.role_type,
+    lat: payload.lat,
+    lng: payload.lng,
+    accuracy: payload.accuracy,
+    hasPhoto: !!payload.photo,
+    photoName: payload.photo?.name,
+  });
+
   const formData = new FormData();
   formData.append("qr_data", payload.qr_data);
   formData.append("role_type", payload.role_type);
@@ -117,13 +130,37 @@ export async function scanQRAttendance(payload: {
   if (payload.accuracy !== undefined) formData.append("accuracy", String(payload.accuracy));
   formData.append("photo", payload.photo);
 
-  const response = await api.post("/attendance/scan-qr", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-  return response.data;
+  console.log("FormData prepared:");
+  console.log("qr_data:", payload.qr_data);
+  console.log("role_type:", payload.role_type);
+  console.log("lat:", payload.lat);
+  console.log("lng:", payload.lng);
+  console.log("accuracy:", payload.accuracy);
+  console.log("photo file:", payload.photo?.name, payload.photo?.size, "bytes");
+
+  try {
+    console.log("📡 Sending POST /attendance/scan-qr ...");
+
+    const response = await api.post("/attendance/scan-qr", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    console.log("✅ Response SUCCESS from /attendance/scan-qr:", response);
+    console.log("Response data:", response.data);
+
+    return response.data;
+
+  } catch (error: any) {
+    console.error("❌ Error calling /attendance/scan-qr");
+    console.error("Error message:", error?.message);
+    console.error("Response error:", error?.response?.data);
+    console.error("Status:", error?.response?.status);
+    console.error("Config:", error?.config);
+
+    throw error; // lempar lagi supaya FE tetap tahu errornya
+  }
 }
+
 
 /**
  * Get attendance status (on_shift or not_clocked_in)

@@ -7,8 +7,9 @@ import { theme } from "../../shared/components/theme";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { Card } from "../../shared/components/Card";
 import { SkeletonCard } from "../../shared/components/Skeleton";
-import { listPatrolLogs } from "../../../api/securityApi";
+import { listPatrolLogs, getPatrolDetail, getGPSTrack } from "../../../api/securityApi";
 import { formatDateTime, formatTime } from "../../../utils/formatDate";
+import { MapView } from "../../shared/components/MapView";
 
 export function SecurityPatrolDetailPage() {
   const { t } = useTranslation();
@@ -28,12 +29,11 @@ export function SecurityPatrolDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await listPatrolLogs();
-      const found = data.find((p: any) => p.id === Number(id));
-      if (found) {
-        setPatrol(found);
+      if (id) {
+        const detail = await getPatrolDetail(Number(id));
+        setPatrol(detail);
       } else {
-        setError("Log patroli tidak ditemukan");
+        setError("ID patrol tidak ditemukan");
       }
     } catch (err: any) {
       console.error("Failed to load patrol:", err);
@@ -52,6 +52,25 @@ export function SecurityPatrolDetailPage() {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours} jam ${mins} menit`;
+  };
+
+  const getGPSMarkers = () => {
+    if (!patrol?.gps_tracks || patrol.gps_tracks.length === 0) return [];
+    return patrol.gps_tracks.map((track: any, index: number) => ({
+      id: index,
+      position: [track.latitude, track.longitude] as [number, number],
+      label: `Point ${index + 1}`,
+      color: index === 0 ? "#10b981" : index === patrol.gps_tracks.length - 1 ? "#ef4444" : "#3b82f6",
+    }));
+  };
+
+  const getGPSTrack = () => {
+    if (!patrol?.gps_tracks || patrol.gps_tracks.length < 2) return [];
+    return [{
+      id: patrol.id,
+      positions: patrol.gps_tracks.map((track: any) => [track.latitude, track.longitude] as [number, number]),
+      color: "#3b82f6",
+    }];
   };
 
   if (loading) {
@@ -192,6 +211,133 @@ export function SecurityPatrolDetailPage() {
           )}
         </div>
       </Card>
+
+      {/* GPS Track Map */}
+      {patrol.gps_tracks && patrol.gps_tracks.length > 0 && (
+        <Card hover={false}>
+          <h3
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              marginBottom: 12,
+              color: theme.colors.textMain,
+            }}
+          >
+            Rute GPS
+          </h3>
+          <MapView
+            center={
+              patrol.gps_tracks.length > 0
+                ? [patrol.gps_tracks[0].latitude, patrol.gps_tracks[0].longitude]
+                : [-6.2088, 106.8456]
+            }
+            markers={getGPSMarkers()}
+            tracks={getGPSTrack()}
+            height="300px"
+          />
+        </Card>
+      )}
+
+      {/* Timeline */}
+      {patrol.timeline && patrol.timeline.length > 0 && (
+        <Card hover={false}>
+          <h3
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              marginBottom: 12,
+              color: theme.colors.textMain,
+            }}
+          >
+            Timeline
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {patrol.timeline.map((event: any, index: number) => (
+              <div
+                key={index}
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  paddingLeft: 8,
+                  borderLeft: `2px solid ${
+                    event.type === "START"
+                      ? theme.colors.success
+                      : event.type === "END"
+                      ? theme.colors.danger
+                      : theme.colors.primary
+                  }`,
+                }}
+              >
+                <div
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    backgroundColor:
+                      event.type === "START"
+                        ? theme.colors.success
+                        : event.type === "END"
+                        ? theme.colors.danger
+                        : theme.colors.primary,
+                    marginTop: 4,
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: theme.colors.textMuted, marginBottom: 2 }}>
+                    {formatTime(event.time)}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
+                    {event.description}
+                  </div>
+                  {event.location && (
+                    <div style={{ fontSize: 12, color: theme.colors.textMuted }}>
+                      📍 {event.location}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Checkpoint Scans */}
+      {patrol.checkpoint_scans && patrol.checkpoint_scans.length > 0 && (
+        <Card hover={false}>
+          <h3
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              marginBottom: 12,
+              color: theme.colors.textMain,
+            }}
+          >
+            Checkpoint Scans ({patrol.checkpoint_scans.length})
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {patrol.checkpoint_scans.map((scan: any, index: number) => (
+              <div
+                key={index}
+                style={{
+                  padding: 12,
+                  backgroundColor: theme.colors.bgSecondary,
+                  borderRadius: 8,
+                  border: `1px solid ${scan.is_valid ? theme.colors.success : theme.colors.danger}`,
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
+                  {scan.checkpoint_name}
+                </div>
+                <div style={{ fontSize: 12, color: theme.colors.textMuted }}>
+                  {formatTime(scan.scan_time)} • {scan.scan_method}
+                  {scan.is_valid ? " ✓" : " ✗"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Photo */}
       {patrol.main_photo_path && (

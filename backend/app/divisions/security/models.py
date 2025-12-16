@@ -73,6 +73,20 @@ class SecurityReport(Base):
     description = Column(Text, nullable=True)
     severity = Column(String(16), nullable=True)  # "low", "medium", "high"
     status = Column(String(32), default="open", nullable=False)
+    
+    # Enhanced incident fields
+    incident_category = Column(String(64), nullable=True, index=True)  # "THEFT", "VANDALISM", "ACCIDENT", etc.
+    incident_level = Column(String(32), nullable=True, index=True)  # "LOW", "MEDIUM", "HIGH", "CRITICAL"
+    incident_severity_score = Column(Integer, nullable=True)  # 1-10 severity score
+    incident_details = Column(Text, nullable=True)  # JSON or text for additional details
+    
+    # Perpetrator tracking
+    perpetrator_name = Column(String(255), nullable=True)
+    perpetrator_type = Column(String(32), nullable=True)  # "INTERNAL", "EXTERNAL", "UNKNOWN"
+    perpetrator_details = Column(Text, nullable=True)  # JSON for additional perpetrator info
+    
+    # Report entry timestamp
+    reported_at = Column(DateTime, nullable=True, index=True)  # When report was actually created/submitted
     # Simple: store file paths as comma-separated or JSON in future
     evidence_paths = Column(Text, nullable=True)
     # Context fields for multi-role support
@@ -102,6 +116,17 @@ class SecurityPatrolLog(Base):
     notes = Column(Text, nullable=True)
     # Optional: one main photo evidence (or you do another table for many photos)
     main_photo_path = Column(String(512), nullable=True)
+    
+    # Enhanced patrol fields
+    patrol_type = Column(String(32), nullable=True)  # "FOOT", "VEHICLE", "MIXED"
+    distance_covered = Column(Float, nullable=True)  # Distance in meters (for foot patrol)
+    steps_count = Column(Integer, nullable=True)  # Step count (optional)
+    route_id = Column(Integer, ForeignKey("patrol_routes.id"), nullable=True, index=True)
+    team_id = Column(Integer, ForeignKey("patrol_teams.id"), nullable=True, index=True)
+    
+    # GPS tracking
+    gps_track_id = Column(Integer, nullable=True)  # Reference to GPS track data
+    
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -363,6 +388,12 @@ class ShiftHandover(Base):
     acknowledged_at = Column(DateTime, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
     resolution_notes = Column(Text, nullable=True)
+    
+    # Enhanced handover fields
+    handover_type = Column(String(32), nullable=True)  # "SHIFT", "DAILY", "WEEKLY"
+    priority_items = Column(JSON, nullable=True)  # JSON array of priority items
+    pending_tasks = Column(JSON, nullable=True)  # JSON array of pending tasks
+    
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

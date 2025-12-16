@@ -10,6 +10,8 @@ import {
 } from "../../../api/supervisorApi";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export function SupervisorReportsPage() {
   const [records, setRecords] = useState<ReportRecord[]>([]);
@@ -33,6 +35,7 @@ export function SupervisorReportsPage() {
   const [statusFilter, setStatusFilter] = useState<string>(""); // Open, In Review, Closed
   const [search, setSearch] = useState<string>("");
   const [showFilters, setShowFilters] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadSites();
@@ -69,13 +72,10 @@ export function SupervisorReportsPage() {
       if (search.trim()) params.search = search.trim();
 
       const response = await listReports(params);
-      // Handle paginated response
+      // Handle response - listReports returns ReportRecord[]
       if (response && Array.isArray(response)) {
         setRecords(response);
         setTotal(response.length);
-      } else if (response && response.items && Array.isArray(response.items)) {
-        setRecords(response.items);
-        setTotal(response.total || 0);
       } else {
         setRecords([]);
         setTotal(0);
@@ -137,6 +137,82 @@ export function SupervisorReportsPage() {
     return labels[type] || type;
   };
 
+  const exportToPDF = () => {
+    if (records.length === 0) {
+      setErrorMsg("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const doc = new jsPDF("landscape", "mm", "a4");
+      
+      // Title
+      doc.setFontSize(16);
+      doc.text("Reports & Incidents Console", 14, 15);
+      
+      // Filter info
+      doc.setFontSize(10);
+      const siteName = siteId ? sites.find((s) => s.id === siteId)?.name || "All Sites" : "All Sites";
+      const divisionName = division || "All Divisions";
+      const reportTypeName = reportType || "All Types";
+      const statusName = statusFilter || "All Status";
+      const searchTerm = search.trim() || "None";
+      
+      doc.text(`Site: ${siteName}`, 14, 22);
+      doc.text(`Division: ${divisionName}`, 14, 27);
+      doc.text(`Report Type: ${reportTypeName}`, 14, 32);
+      doc.text(`Status: ${statusName}`, 14, 37);
+      doc.text(`Search: ${searchTerm}`, 14, 42);
+      doc.text(`Periode: ${dateFrom} s/d ${dateTo}`, 14, 47);
+      doc.text(`Total Records: ${records.length}`, 14, 52);
+      
+      // Prepare table data
+      const tableData = records.map((r) => [
+        format(new Date(r.created_at), "dd MMM yyyy HH:mm", { locale: id }),
+        r.division,
+        getReportTypeLabel(r.report_type),
+        r.title,
+        r.site_name,
+        r.created_by_name || "Unknown",
+        r.status,
+      ]);
+
+      // Add table
+      autoTable(doc, {
+        startY: 57,
+        head: [["Time", "Division", "Type", "Title", "Site", "Reporter", "Status"]],
+        body: tableData,
+        styles: { fontSize: 7 },
+        headStyles: { fillColor: [26, 54, 93], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { left: 14, right: 14 },
+        tableWidth: "wrap",
+        columnStyles: {
+          0: { cellWidth: 30 }, // Time
+          1: { cellWidth: 25 }, // Division
+          2: { cellWidth: 35 }, // Type
+          3: { cellWidth: 50 }, // Title
+          4: { cellWidth: 30 }, // Site
+          5: { cellWidth: 30 }, // Reporter
+          6: { cellWidth: 25 }, // Status
+        },
+      });
+
+      // Generate filename
+      const filename = `Reports_${siteName}_${dateFrom}_${dateTo}.pdf`.replace(/[^a-z0-9_\-]/gi, "_");
+
+      // Save PDF
+      doc.save(filename);
+      setErrorMsg("");
+    } catch (err: any) {
+      console.error("Export PDF error:", err);
+      setErrorMsg("Gagal mengekspor ke PDF");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: "100%", paddingBottom: "2rem" }} className="overflow-y-auto">
       <div>
@@ -164,9 +240,11 @@ export function SupervisorReportsPage() {
             justifyContent: "space-between",
             alignItems: "center",
             marginBottom: showFilters ? 12 : 0,
+            flexWrap: "wrap",
+            gap: 8,
           }}
         >
-          <div>
+          <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: theme.colors.textMain }}>
               Filters & Search
             </div>
@@ -174,20 +252,42 @@ export function SupervisorReportsPage() {
               Filter by date, division, type, status, and site
             </div>
           </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            style={{
-              padding: "4px 12px",
-              fontSize: 12,
-              borderRadius: theme.radius.pill,
-              border: `1px solid ${theme.colors.border}`,
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.textMain,
-              cursor: "pointer",
-            }}
-          >
-            {showFilters ? "Hide" : "Show"} Filters
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={exportToPDF}
+              disabled={exporting || records.length === 0}
+              style={{
+                padding: "6px 12px",
+                fontSize: 12,
+                borderRadius: theme.radius.pill,
+                border: `1px solid ${theme.colors.danger}`,
+                backgroundColor: exporting || records.length === 0 ? theme.colors.border : theme.colors.danger,
+                color: "#fff",
+                cursor: exporting || records.length === 0 ? "not-allowed" : "pointer",
+                opacity: exporting || records.length === 0 ? 0.6 : 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+              title="Export to PDF"
+            >
+              📄 PDF
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              style={{
+                padding: "6px 12px",
+                fontSize: 12,
+                borderRadius: theme.radius.pill,
+                border: `1px solid ${theme.colors.border}`,
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.textMain,
+                cursor: "pointer",
+              }}
+            >
+              {showFilters ? "Hide" : "Show"} Filters
+            </button>
+          </div>
         </div>
 
         {/* Search */}

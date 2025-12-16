@@ -1,6 +1,6 @@
 // frontend/web/src/modules/cleaning/pages/CleaningReportFormPage.tsx
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MobileLayout } from "../../shared/components/MobileLayout";
 import { theme } from "../../shared/components/theme";
@@ -27,6 +27,11 @@ export function CleaningReportFormPage() {
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [zones, setZones] = useState<CleaningZone[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    site?: string;
+    title?: string;
+  }>({});
 
   useEffect(() => {
     const loadZones = async () => {
@@ -45,26 +50,113 @@ export function CleaningReportFormPage() {
     loadZones();
   }, [selectedSite]);
 
+  const validate = () => {
+    const errors: typeof fieldErrors = {};
+    if (!selectedSite) errors.site = "Site harus dipilih";
+    if (!title.trim()) errors.title = "Judul harus diisi";
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !selectedSite) return;
+    if (!validate()) return;
 
     setSubmitting(true);
+    setError(null);
+
     try {
-      await createCleaningReport({
-        report_type: reportType,
+      // Ensure site_id is valid
+      if (!selectedSite || !selectedSite.id) {
+        throw new Error("Site harus dipilih");
+      }
+
+      // Ensure report_type is not empty
+      const reportTypeValue = reportType || "daily";
+      if (!reportTypeValue || !reportTypeValue.trim()) {
+        throw new Error("Tipe laporan harus dipilih");
+      }
+
+      // Ensure title is not empty
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) {
+        throw new Error("Judul laporan harus diisi");
+      }
+
+      // Create payload - only include evidenceFiles if there are any
+      const payload = {
+        report_type: reportTypeValue.trim(),
         site_id: selectedSite.id,
-        zone_id: zoneId ? parseInt(zoneId) : undefined,
-        location_text: locationText || undefined,
-        title,
-        description: description || undefined,
-        severity: severity || undefined,
-        evidenceFiles: evidenceFiles.length > 0 ? evidenceFiles : undefined,
+        title: trimmedTitle,
+        ...(zoneId && zoneId.trim() && { zone_id: parseInt(zoneId) }),
+        ...(locationText && locationText.trim() && { location_text: locationText.trim() }),
+        ...(description && description.trim() && { description: description.trim() }),
+        ...(severity && severity.trim() && { severity: severity.trim() }),
+        // Only include evidenceFiles if there are files
+        ...(evidenceFiles.length > 0 && { evidenceFiles: evidenceFiles.filter(Boolean) }),
+      };
+
+      // Debug: log payload (without files)
+      console.log("Creating cleaning report with payload:", {
+        ...payload,
+        evidenceFiles: payload.evidenceFiles ? `${payload.evidenceFiles.length} files` : "none",
       });
+
+      await createCleaningReport(payload);
       showToast("Laporan berhasil dibuat", "success");
       navigate("/cleaning/reports");
     } catch (err: any) {
-      showToast(err.response?.data?.detail || "Gagal membuat laporan", "error");
+      console.error("Failed to create report:", err);
+      
+      // Better error handling - show validation errors if available
+      let errorMsg: string = "Gagal menyimpan laporan";
+      
+      try {
+        if (err?.response?.data?.detail) {
+          const detail = err.response.data.detail;
+          
+          if (Array.isArray(detail)) {
+            // Validation errors from FastAPI (422 errors)
+            const errorMessages: string[] = [];
+            detail.forEach((e: any) => {
+              try {
+                // Get field name from location array (last element)
+                const field = Array.isArray(e.loc) ? e.loc[e.loc.length - 1] : 'unknown';
+                // Get error message
+                const msg = typeof e.msg === 'string' ? e.msg : 'Invalid value';
+                // Format field name nicely
+                const fieldName = String(field).replace(/_/g, ' ');
+                errorMessages.push(`${fieldName}: ${msg}`);
+              } catch (parseErr) {
+                // If we can't parse this error, skip it
+                console.warn("Error parsing validation error:", parseErr);
+              }
+            });
+            errorMsg = errorMessages.length > 0 
+              ? errorMessages.join('; ') 
+              : "Terjadi kesalahan validasi";
+          } else if (typeof detail === 'string') {
+            errorMsg = detail;
+          } else {
+            // If detail is an object, try to stringify it
+            try {
+              errorMsg = JSON.stringify(detail);
+            } catch {
+              errorMsg = "Terjadi kesalahan validasi";
+            }
+          }
+        } else if (err?.message && typeof err.message === 'string') {
+          errorMsg = err.message;
+        }
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError);
+        errorMsg = "Terjadi kesalahan saat memproses error";
+      }
+      
+      // Ensure errorMsg is always a string
+      const finalErrorMsg = String(errorMsg || "Gagal menyimpan laporan");
+      setError(finalErrorMsg);
+      showToast(finalErrorMsg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -165,22 +257,42 @@ export function CleaningReportFormPage() {
         {/* Title */}
         <div style={{ marginBottom: 12 }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-            Judul *
+            Judul * <span style={{ color: theme.colors.danger }}>*</span>
           </label>
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              if (fieldErrors.title) {
+                setFieldErrors({ ...fieldErrors, title: undefined });
+              }
+            }}
             placeholder="Masukkan judul laporan"
             required
             style={{
               width: "100%",
               padding: "10px 12px",
               borderRadius: 8,
-              border: `1px solid ${theme.colors.border}`,
+              border: `1.5px solid ${
+                fieldErrors.title ? theme.colors.danger : theme.colors.border
+              }`,
               fontSize: 13,
+              transition: "all 0.2s",
+              outline: "none",
             }}
           />
+          {fieldErrors.title && (
+            <div
+              style={{
+                fontSize: 12,
+                color: theme.colors.danger,
+                marginTop: 4,
+              }}
+            >
+              {fieldErrors.title}
+            </div>
+          )}
         </div>
 
         {/* Description */}
@@ -274,6 +386,22 @@ export function CleaningReportFormPage() {
             </div>
           )}
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div
+            style={{
+              marginBottom: 12,
+              padding: 12,
+              backgroundColor: "#FEE2E2",
+              borderRadius: 8,
+              fontSize: 13,
+              color: theme.colors.danger,
+            }}
+          >
+            {typeof error === 'string' ? error : String(error || 'Terjadi kesalahan')}
+          </div>
+        )}
 
         {/* Submit */}
         <div style={{ display: "flex", gap: 8, marginTop: 16 }}>

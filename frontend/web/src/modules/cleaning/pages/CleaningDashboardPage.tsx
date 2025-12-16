@@ -1,4 +1,5 @@
 // frontend/web/src/modules/cleaning/pages/CleaningDashboardPage.tsx
+// Statistics-focused dashboard for cleaning division
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -18,12 +19,10 @@ interface ReportsSummary {
   daily: number;
 }
 
-
 export function CleaningDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   
-  // TODO: replace with real sites from API / auth
   const [sites] = useState<SiteOption[]>([
     { id: 1, name: "Situs A" },
     { id: 2, name: "Situs B" },
@@ -34,20 +33,33 @@ export function CleaningDashboardPage() {
   );
 
   const [attendance, setAttendance] = useState<CleaningAttendance | null>(null);
-  const [reportsSummary, setReportsSummary] = useState<ReportsSummary | null>(
-    null
-  );
+  const [reportsSummary, setReportsSummary] = useState<ReportsSummary | null>(null);
   const [checklistSummary, setChecklistSummary] = useState<{
     total: number;
     completed: number;
     incomplete: number;
     status: string | null;
   } | null>(null);
-  const [checklistItems, setChecklistItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const hasCheckIn = !!attendance?.checkin_time;
   const hasCheckOut = !!attendance?.checkout_time;
+
+  // Calculate shift duration
+  const shiftDuration = () => {
+    if (!attendance?.checkin_time) return null;
+    const checkIn = new Date(attendance.checkin_time);
+    const checkOut = attendance?.checkout_time ? new Date(attendance.checkout_time) : new Date();
+    const diffMs = checkOut.getTime() - checkIn.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${diffHours}j ${diffMinutes}m`;
+  };
+
+  // Calculate checklist completion percentage
+  const checklistPercent = checklistSummary && checklistSummary.total > 0
+    ? ((checklistSummary.completed / checklistSummary.total) * 100).toFixed(0)
+    : "0";
 
   useEffect(() => {
     const load = async () => {
@@ -87,19 +99,11 @@ export function CleaningDashboardPage() {
               incomplete: required.length - completed.length,
               status: checklist.status,
             });
-            // Store items for preview (show pending items first, max 3)
-            const pendingItems = checklist.items
-              .filter((i: any) => i.status === "PENDING" && i.required)
-              .slice(0, 3);
-            setChecklistItems(pendingItems);
           } else {
             setChecklistSummary(null);
-            setChecklistItems([]);
           }
         } catch (err) {
-          // No checklist for today, ignore
           setChecklistSummary(null);
-          setChecklistItems([]);
         }
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
@@ -113,14 +117,13 @@ export function CleaningDashboardPage() {
 
   return (
     <MobileLayout title={t("cleaning.title") || "Pembersihan"}>
-      {/* Site selector */}
       <SiteSelector
         sites={sites}
         value={siteId}
         onChange={(id) => setSiteId(id)}
       />
 
-      {/* Top card: current post & shift status */}
+      {/* Status Card */}
       <section
         style={{
           marginBottom: 12,
@@ -130,13 +133,12 @@ export function CleaningDashboardPage() {
           boxShadow: theme.shadowCard,
         }}
       >
-        {/* Site & date row */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: 4,
+            marginBottom: 8,
           }}
         >
           <div style={{ fontSize: 12, color: theme.colors.textMuted }}>
@@ -157,35 +159,51 @@ export function CleaningDashboardPage() {
           {sites.find((s) => s.id === siteId)?.name ?? "–"}
         </div>
 
-        {/* Shift status */}
+        {/* Shift info grid */}
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
             gap: 8,
-            marginBottom: 4,
+            marginBottom: 8,
           }}
         >
-          <div style={{ fontSize: 13 }}>
-            <span style={{ color: theme.colors.textMuted }}>
-              {t("cleaning.checkIn") || "Check-in"}:
-            </span>{" "}
-            <strong>
+          <div>
+            <div style={{ fontSize: 11, color: theme.colors.textMuted }}>
+              {t("cleaning.checkIn") || "Check-in"}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
               {attendance?.checkin_time
-                ? new Date(attendance.checkin_time).toLocaleTimeString("id-ID")
+                ? new Date(attendance.checkin_time).toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
                 : "-"}
-            </strong>
+            </div>
           </div>
-          <div style={{ fontSize: 13 }}>
-            <span style={{ color: theme.colors.textMuted }}>
-              {t("cleaning.checkOut") || "Check-out"}:
-            </span>{" "}
-            <strong>
+          <div>
+            <div style={{ fontSize: 11, color: theme.colors.textMuted }}>
+              {t("cleaning.checkOut") || "Check-out"}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
               {attendance?.checkout_time
-                ? new Date(attendance.checkout_time).toLocaleTimeString("id-ID")
+                ? new Date(attendance.checkout_time).toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
                 : "-"}
-            </strong>
+            </div>
           </div>
+          {shiftDuration() && (
+            <div>
+              <div style={{ fontSize: 11, color: theme.colors.textMuted }}>
+                Durasi
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
+                {shiftDuration()}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Status pill */}
@@ -218,7 +236,9 @@ export function CleaningDashboardPage() {
         </div>
       </section>
 
-      {/* KPI tiles like GuardsPro */}
+      <PengumumanCard />
+
+      {/* Statistics Cards - Focus on Numbers */}
       <section style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 8 }}>
           <div
@@ -287,95 +307,59 @@ export function CleaningDashboardPage() {
               {t("cleaning.checklist") || "Checklist"}
             </div>
             <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-              {checklistSummary
-                ? `${checklistSummary.completed}/${checklistSummary.total}`
-                : "–"}
+              {checklistPercent}%
             </div>
             <div
               style={{
                 marginTop: 2,
                 fontSize: 11,
                 color: theme.colors.textSoft,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: checklistItems.length > 0 ? 6 : 0,
               }}
             >
-              {checklistSummary && (
-                <span
-                  style={{
-                    color:
-                      checklistSummary.status === "COMPLETED"
-                        ? theme.colors.success
-                        : checklistSummary.status === "INCOMPLETE"
-                        ? theme.colors.danger
-                        : theme.colors.warning,
-                    fontWeight: 600,
-                  }}
-                >
-                  {checklistSummary.status === "COMPLETED"
-                    ? "✓ " + (t("cleaning.completed") || "Selesai")
-                    : checklistSummary.status === "INCOMPLETE"
-                    ? "⚠ " + (t("cleaning.incomplete") || "Belum Selesai")
-                    : "○ " + (t("cleaning.checklistProgress") || "Dalam Proses")}
-                </span>
-              )}
+              {checklistSummary
+                ? `${checklistSummary.completed}/${checklistSummary.total} selesai`
+                : "No checklist"}
             </div>
-            {/* Preview pending items */}
-            {checklistItems.length > 0 && (
+          </div>
+          {shiftDuration() && (
+            <div
+              style={{
+                flex: 1,
+                backgroundColor: theme.colors.surface,
+                borderRadius: theme.radius.card,
+                padding: 10,
+                boxShadow: theme.shadowSoft,
+              }}
+            >
               <div
                 style={{
-                  marginTop: 6,
-                  paddingTop: 6,
-                  borderTop: `1px solid ${theme.colors.border}`,
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  color: theme.colors.textMuted,
+                  marginBottom: 4,
+                  letterSpacing: 0.4,
                 }}
               >
-                {checklistItems.map((item, idx) => (
-                  <div
-                    key={item.id || idx}
-                    style={{
-                      fontSize: 10,
-                      color: theme.colors.textMuted,
-                      marginBottom: 3,
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 4,
-                    }}
-                  >
-                    <span style={{ color: theme.colors.warning }}>○</span>
-                    <span
-                      style={{
-                        flex: 1,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {item.title}
-                    </span>
-                  </div>
-                ))}
-                {checklistSummary &&
-                  checklistSummary.incomplete > checklistItems.length && (
-                    <div
-                      style={{
-                        fontSize: 9,
-                        color: theme.colors.textSoft,
-                        marginTop: 2,
-                        fontStyle: "italic",
-                      }}
-                    >
-                      +{checklistSummary.incomplete - checklistItems.length} lagi...
-                    </div>
-                  )}
+                Durasi Shift
               </div>
-            )}
-          </div>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>
+                {shiftDuration()}
+              </div>
+              <div
+                style={{
+                  marginTop: 2,
+                  fontSize: 11,
+                  color: theme.colors.textSoft,
+                }}
+              >
+                {hasCheckIn ? (hasCheckOut ? "Shift selesai" : "Masih berlangsung") : "Belum check in"}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Quick actions grid – Icon buttons */}
+      {/* Quick actions grid */}
       <section>
         <div
           style={{

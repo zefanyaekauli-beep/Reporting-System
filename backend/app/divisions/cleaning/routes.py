@@ -10,6 +10,7 @@ from fastapi import (
     UploadFile,
     File,
     Form,
+    Body,
 )
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
@@ -17,8 +18,11 @@ from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.attendance import Attendance, AttendanceStatus
+from app.models.shift import Shift, ShiftStatus
+from app.models.site import Site
 from . import models, schemas
 from app.divisions.security.models import Checklist, ChecklistItem, ChecklistStatus, ChecklistItemStatus, ChecklistTemplate, SecurityReport
+from app.divisions.security import schemas as security_schemas
 import os
 
 router = APIRouter(tags=["cleaning"])
@@ -41,14 +45,44 @@ def list_cleaning_zones(
     current_user=Depends(get_current_user),
 ):
     """List all cleaning zones for a site."""
-    q = db.query(models.CleaningZone).filter(
-        models.CleaningZone.company_id == current_user.get("company_id", 1),
-    )
-    if site_id:
-        q = q.filter(models.CleaningZone.site_id == site_id)
-    if is_active is not None:
-        q = q.filter(models.CleaningZone.is_active == is_active)
-    return q.all()
+    try:
+        from sqlalchemy import or_
+        # Query with division filter, including NULL for backward compatibility
+        q = db.query(models.CleaningZone).filter(
+            models.CleaningZone.company_id == current_user.get("company_id", 1),
+            or_(
+                models.CleaningZone.division == "CLEANING",
+                models.CleaningZone.division.is_(None)
+            )
+        )
+        if site_id:
+            q = q.filter(models.CleaningZone.site_id == site_id)
+        if is_active is not None:
+            q = q.filter(models.CleaningZone.is_active == is_active)
+        zones = q.all()
+        
+        # Update any NULL division values to CLEANING
+        updated = False
+        for zone in zones:
+            if hasattr(zone, 'division') and zone.division is None:
+                zone.division = "CLEANING"
+                updated = True
+        
+        if updated:
+            try:
+                db.commit()
+            except Exception as commit_err:
+                db.rollback()
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Could not commit division updates: {commit_err}")
+        
+        return zones
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error listing cleaning zones: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list cleaning zones: {str(e)}")
 
 @router.post("/zones", response_model=schemas.CleaningZoneBase)
 def create_cleaning_zone(
@@ -331,6 +365,153 @@ def get_zone_checklist(
         "items": items,
     }
 
+@router.get("/tasks/{checklist_id}/detail")
+def get_cleaning_task_detail(
+    checklist_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Get detailed cleaning task/checklist information."""
+    from app.core.logger import api_logger
+    from app.models.user import User
+    from app.models.site import Site
+    from sqlalchemy.orm import joinedload
+    from app.divisions.security.models import ChecklistItemStatus, ChecklistStatus
+    
+    try:
+        checklist = (
+            db.query(Checklist)
+            .options(joinedload(Checklist.items))
+            .filter(
+                Checklist.id == checklist_id,
+                Checklist.company_id == current_user.get("company_id", 1),
+                Checklist.division == "CLEANING",
+            )
+            .first()
+        )
+        
+        if not checklist:
+            raise HTTPException(status_code=404, detail="Cleaning task not found")
+        
+        # Get user and site info
+        user = db.query(User).filter(User.id == checklist.user_id).first()
+        site = db.query(Site).filter(Site.id == checklist.site_id).first()
+        
+        # Get zone info if context_type is CLEANING_ZONE
+        zone = None
+        if checklist.context_type == "CLEANING_ZONE" and checklist.context_id:
+            zone = db.query(models.CleaningZone).filter(
+                models.CleaningZone.id == checklist.context_id
+            ).first()
+        
+        # Build checklist items with evidence
+        items_detail = []
+        for item in checklist.items:
+            item_data = {
+                "id": item.id,
+                "order": item.order,
+                "title": item.title,
+                "description": item.description,
+                "required": item.required,
+                "evidence_type": item.evidence_type,
+                "status": item.status.value if hasattr(item.status, 'value') else str(item.status),
+                "completed_at": item.completed_at.isoformat() if item.completed_at else None,
+                "evidence": [],
+            }
+            
+            # Get evidence (photos, notes, etc.)
+            if item.evidence_id:
+                # If evidence_id exists, get evidence details
+                from app.models.evidence import Evidence
+                evidence = db.query(Evidence).filter(Evidence.id == item.evidence_id).first()
+                if evidence:
+                    item_data["evidence"] = [{"type": "photo", "path": evidence.file_path}]
+            elif hasattr(item, 'photo_id') and item.photo_id:
+                item_data["evidence"] = [{"type": "photo", "id": item.photo_id}]
+            
+            if hasattr(item, 'note') and item.note:
+                item_data["notes"] = item.note
+            
+            if hasattr(item, 'answer_text') and item.answer_text:
+                item_data["answer"] = item.answer_text
+            elif hasattr(item, 'answer_bool') and item.answer_bool is not None:
+                item_data["answer"] = str(item.answer_bool)
+            elif hasattr(item, 'answer_int') and item.answer_int is not None:
+                item_data["answer"] = str(item.answer_int)
+            
+            items_detail.append(item_data)
+        
+        # Calculate completion
+        total_items = len(checklist.items)
+        completed_items = sum(1 for item in checklist.items if item.status == ChecklistItemStatus.COMPLETED)
+        completion_percentage = (completed_items / total_items * 100) if total_items > 0 else 0
+        
+        # Build timeline
+        timeline = []
+        timeline.append({
+            "time": checklist.created_at.isoformat(),
+            "type": "CREATED",
+            "description": "Task created",
+        })
+        
+        for item in sorted(checklist.items, key=lambda x: x.completed_at if hasattr(x, 'completed_at') and x.completed_at else datetime.min):
+            if hasattr(item, 'completed_at') and item.completed_at:
+                timeline.append({
+                    "time": item.completed_at.isoformat(),
+                    "type": "ITEM_COMPLETED",
+                    "description": f"Completed: {item.title}",
+                })
+        
+        if checklist.status == ChecklistStatus.COMPLETED:
+            timeline.append({
+                "time": checklist.updated_at.isoformat(),
+                "type": "COMPLETED",
+                "description": "Task completed",
+            })
+        
+        result = {
+            "id": checklist.id,
+            "user": {
+                "id": checklist.user_id,
+                "name": user.username if user else f"User {checklist.user_id}",
+            },
+            "site": {
+                "id": checklist.site_id,
+                "name": site.name if site else f"Site {checklist.site_id}",
+            },
+            "zone": {
+                "id": zone.id if zone else None,
+                "name": zone.name if zone else None,
+                "code": zone.code if zone else None,
+            } if zone else None,
+            "shift_date": checklist.shift_date.isoformat() if checklist.shift_date else None,
+            "status": checklist.status.value if hasattr(checklist.status, 'value') else str(checklist.status),
+            "completion": {
+                "total_items": total_items,
+                "completed_items": completed_items,
+                "completion_percentage": round(completion_percentage, 2),
+            },
+            "items": items_detail,
+            "timeline": timeline,
+            "created_at": checklist.created_at.isoformat(),
+            "updated_at": checklist.updated_at.isoformat(),
+        }
+        
+        api_logger.info(f"Retrieved cleaning task detail {checklist_id} for user {current_user.get('id')}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        from app.core.logger import api_logger
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error getting cleaning task detail: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get cleaning task detail: {error_msg}"
+        )
+
 # ---- Cleaning Dashboard (Supervisor) ----
 
 @router.get("/dashboard", response_model=List[schemas.CleaningZoneWithTasks])
@@ -506,7 +687,7 @@ def get_today_attendance(
 
 # ---- Reports ----
 
-@router.post("/reports")
+@router.post("/reports", response_model=security_schemas.SecurityReportOut)
 async def create_cleaning_report(
     report_type: str = Form(...),
     site_id: int = Form(...),
@@ -515,41 +696,160 @@ async def create_cleaning_report(
     title: str = Form(...),
     description: Optional[str] = Form(None),
     severity: Optional[str] = Form(None),
-    evidence_files: Optional[List[UploadFile]] = File(None),
+    evidence_files: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """Create a cleaning report."""
-    evidence_paths: List[str] = []
+    from app.core.logger import api_logger
+    import re
+    import traceback
+    
+    try:
+        api_logger.info(f"Creating cleaning report - user_id: {current_user.get('id')}, site_id: {site_id}, title: {title[:50] if title else 'None'}")
+        
+        # Validate and sanitize required fields
+        if not title or not title.strip():
+            api_logger.warning("Title is missing or empty")
+            raise HTTPException(status_code=400, detail="Title is required")
+        if not report_type or not report_type.strip():
+            api_logger.warning("Report type is missing or empty")
+            raise HTTPException(status_code=400, detail="Report type is required")
+        
+        # Get user info
+        user_id = current_user.get("id")
+        company_id = current_user.get("company_id", 1)
+        
+        if not user_id:
+            api_logger.error("User ID not found in token")
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
+        api_logger.info(f"User info - user_id: {user_id}, company_id: {company_id}")
+        
+        # Validate site_id exists
+        from app.models.site import Site
+        site = db.query(Site).filter(Site.id == site_id).first()
+        if not site:
+            api_logger.warning(f"Site {site_id} not found")
+            raise HTTPException(status_code=404, detail=f"Site with ID {site_id} not found")
+        api_logger.info(f"Site validated: {site.name}")
+        
+        # Validate zone_id if provided
+        if zone_id is not None:
+            zone = db.query(models.CleaningZone).filter(
+                models.CleaningZone.id == zone_id,
+                models.CleaningZone.company_id == company_id,
+                models.CleaningZone.division == "CLEANING"
+            ).first()
+            if not zone:
+                api_logger.warning(f"Cleaning zone {zone_id} not found for company {company_id}")
+                raise HTTPException(status_code=404, detail=f"Cleaning zone with ID {zone_id} not found")
+            api_logger.info(f"Zone validated: {zone.name}")
+        
+        evidence_paths: List[str] = []
 
-    if evidence_files:
-        for f in evidence_files:
-            filename = f"{int(datetime.utcnow().timestamp())}_{f.filename}"
-            path = f"{CLEANING_REPORTS_DIR}/{filename}"
-            with open(path, "wb") as out:
-                content = await f.read()
-                out.write(content)
-            evidence_paths.append(path)
+        # Handle file uploads
+        if evidence_files:
+            # Ensure directory exists
+            try:
+                os.makedirs(CLEANING_REPORTS_DIR, exist_ok=True)
+            except Exception as dir_err:
+                error_msg = str(dir_err)
+                error_type = type(dir_err).__name__
+                api_logger.error(f"Failed to create directory {CLEANING_REPORTS_DIR}: {error_type} - {error_msg}")
+                raise HTTPException(status_code=500, detail=f"Failed to create media directory: {error_msg}")
+            
+            for f in evidence_files:
+                if f and f.filename:
+                    # Sanitize filename
+                    safe_filename = re.sub(r'[^\w\-_\.]', '_', f.filename)
+                    timestamp = int(datetime.utcnow().timestamp())
+                    filename = f"{timestamp}_{safe_filename}"
+                    
+                    # Use os.path.join for cross-platform compatibility
+                    file_path = os.path.join(CLEANING_REPORTS_DIR, filename)
+                    
+                    try:
+                        # Read file content
+                        content = await f.read()
+                        if not content:
+                            api_logger.warning(f"Empty file uploaded: {f.filename}")
+                            continue
+                        
+                        # Write file
+                        with open(file_path, "wb") as out:
+                            out.write(content)
+                        
+                        # Store relative path
+                        evidence_paths.append(file_path)
+                        api_logger.info(f"Saved evidence file: {file_path}")
+                    except Exception as file_err:
+                        error_msg = str(file_err)
+                        error_type = type(file_err).__name__
+                        api_logger.error(f"Failed to save file {f.filename}: {error_type} - {error_msg}")
+                        # Continue with other files, but log the error
+                        continue
+        
+        # Prepare report data
+        report_data = {
+            "company_id": company_id,
+            "site_id": site_id,
+            "user_id": user_id,
+            "division": "CLEANING",
+            "report_type": report_type.strip(),
+            "zone_id": zone_id,
+            "location_id": None,
+            "location_text": location_text.strip() if location_text else None,
+            "title": title.strip(),
+            "description": description.strip() if description else None,
+            "severity": severity.strip() if severity else None,
+            "status": "open",
+            "evidence_paths": ",".join(evidence_paths) if evidence_paths else None,
+            "vehicle_id": None,
+            "trip_id": None,
+            "checklist_id": None,
+            "reported_at": datetime.utcnow(),  # Set reported_at timestamp
+        }
+        
+        api_logger.info(f"Creating report with data: {report_data}")
+        
+        # Create report with all required fields
+        report = SecurityReport(**report_data)
 
-    report = SecurityReport(
-        company_id=current_user.get("company_id", 1),
-        site_id=site_id,
-        user_id=current_user["id"],
-        report_type=report_type,
-        zone_id=zone_id,
-        location_text=location_text,
-        title=title,
-        description=description,
-        severity=severity,
-        evidence_paths=",".join(evidence_paths) if evidence_paths else None,
-    )
+        db.add(report)
+        db.flush()  # Flush to get ID without committing
+        api_logger.info(f"Report added to session, ID: {report.id}")
+        
+        db.commit()
+        api_logger.info(f"Report committed to database, ID: {report.id}")
+        
+        db.refresh(report)
+        api_logger.info(f"Created cleaning report {report.id} by user {user_id} for site {site_id}")
+        
+        return report
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        try:
+            db.rollback()
+        except:
+            pass
+        raise
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Unexpected error creating cleaning report: {error_type} - {error_msg}\n{error_trace}")
+        try:
+            db.rollback()
+        except:
+            pass
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to create cleaning report: {error_msg}. Check server logs for details."
+        )
 
-    db.add(report)
-    db.commit()
-    db.refresh(report)
-    return report
-
-@router.get("/reports")
+@router.get("/reports", response_model=List[security_schemas.SecurityReportOut])
 def list_cleaning_reports(
     site_id: Optional[int] = Query(None),
     zone_id: Optional[int] = Query(None),
@@ -559,44 +859,60 @@ def list_cleaning_reports(
     current_user=Depends(get_current_user),
 ):
     """List cleaning reports."""
-    q = db.query(SecurityReport).filter(
-        SecurityReport.company_id == current_user.get("company_id", 1),
-        SecurityReport.user_id == current_user["id"],
-    )
+    try:
+        q = db.query(SecurityReport).filter(
+            SecurityReport.company_id == current_user.get("company_id", 1),
+            SecurityReport.user_id == current_user["id"],
+            SecurityReport.division == "CLEANING",  # Filter by division
+        )
 
-    if site_id is not None:
-        q = q.filter(SecurityReport.site_id == site_id)
-    if zone_id is not None:
-        q = q.filter(SecurityReport.zone_id == zone_id)
-    if from_date is not None:
-        q = q.filter(SecurityReport.created_at >= datetime.combine(from_date, datetime.min.time()))
-    if to_date is not None:
-        q = q.filter(SecurityReport.created_at <= datetime.combine(to_date, datetime.max.time()))
+        if site_id is not None:
+            q = q.filter(SecurityReport.site_id == site_id)
+        if zone_id is not None:
+            q = q.filter(SecurityReport.zone_id == zone_id)
+        if from_date is not None:
+            q = q.filter(SecurityReport.created_at >= datetime.combine(from_date, datetime.min.time()))
+        if to_date is not None:
+            q = q.filter(SecurityReport.created_at <= datetime.combine(to_date, datetime.max.time()))
 
-    q = q.order_by(SecurityReport.created_at.desc()).limit(200)
-    return q.all()
+        q = q.order_by(SecurityReport.created_at.desc()).limit(200)
+        return q.all()
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error listing cleaning reports: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list cleaning reports: {str(e)}")
 
-@router.get("/reports/{report_id}")
+@router.get("/reports/{report_id}", response_model=security_schemas.SecurityReportOut)
 def get_cleaning_report(
     report_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """Get a specific cleaning report."""
-    report = (
-        db.query(SecurityReport)
-        .filter(
-            SecurityReport.id == report_id,
-            SecurityReport.company_id == current_user.get("company_id", 1),
-            SecurityReport.user_id == current_user["id"],
+    try:
+        report = (
+            db.query(SecurityReport)
+            .filter(
+                SecurityReport.id == report_id,
+                SecurityReport.company_id == current_user.get("company_id", 1),
+                SecurityReport.user_id == current_user["id"],
+                SecurityReport.division == "CLEANING",  # Filter by division
+            )
+            .first()
         )
-        .first()
-    )
 
-    if not report:
-        raise HTTPException(status_code=404, detail="Laporan tidak ditemukan")
+        if not report:
+            raise HTTPException(status_code=404, detail="Laporan tidak ditemukan")
 
-    return report
+        return report
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting cleaning report: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get cleaning report: {str(e)}")
 
 @router.get("/reports/{report_id}/export-pdf")
 def export_cleaning_report_pdf(
@@ -615,6 +931,7 @@ def export_cleaning_report_pdf(
             SecurityReport.id == report_id,
             SecurityReport.company_id == current_user.get("company_id", 1),
             SecurityReport.user_id == current_user["id"],
+            SecurityReport.division == "CLEANING",  # Filter by division
         )
         .first()
     )
@@ -669,6 +986,7 @@ def export_cleaning_reports_summary_pdf(
     q = db.query(SecurityReport).filter(
         SecurityReport.company_id == current_user.get("company_id", 1),
         SecurityReport.user_id == current_user["id"],
+        SecurityReport.division == "CLEANING",  # Filter by division
     )
 
     if site_id is not None:
@@ -720,7 +1038,7 @@ def export_cleaning_reports_summary_pdf(
 
 # ---- Checklist Endpoints (Cleaner) ----
 
-@router.get("/me/checklist/today")
+@router.get("/me/checklist/today", response_model=security_schemas.ChecklistOut)
 def get_today_checklist(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -728,13 +1046,16 @@ def get_today_checklist(
     """Get today's checklist for current cleaning user."""
     from fastapi import status as http_status
     
+    from sqlalchemy.orm import joinedload
     today = date.today()
     checklist = (
         db.query(Checklist)
+        .options(joinedload(Checklist.items))
         .filter(
             Checklist.company_id == current_user.get("company_id", 1),
             Checklist.user_id == current_user["id"],
             Checklist.shift_date == today,
+            Checklist.division == "CLEANING",
         )
         .order_by(Checklist.id.desc())
         .first()
@@ -747,3 +1068,407 @@ def get_today_checklist(
         )
     
     return checklist
+
+@router.post("/me/checklist/create", response_model=security_schemas.ChecklistOut)
+def create_checklist_manually(
+    payload: security_schemas.CreateChecklistRequest = Body(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Manually create checklist for today if it doesn't exist.
+    Useful when checklist wasn't created during check-in.
+    """
+    from fastapi import status as http_status
+    from app.divisions.security.services.checklist_service import create_checklist_for_attendance
+    from app.models.user import User
+    
+    today = date.today()
+    
+    # Check if checklist already exists
+    existing = (
+        db.query(Checklist)
+        .filter(
+            Checklist.company_id == current_user.get("company_id", 1),
+            Checklist.user_id == current_user["id"],
+            Checklist.site_id == payload.site_id,
+            Checklist.shift_date == today,
+            Checklist.division == "CLEANING",
+        )
+        .first()
+    )
+    
+    if existing:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Checklist already exists for today"
+        )
+    
+    # Get User model
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not user:
+        user = current_user
+    
+    # Determine shift type based on current time
+    now = datetime.utcnow()
+    hour = now.hour
+    shift_type = None
+    if 6 <= hour < 14:
+        shift_type = "MORNING"
+    elif 14 <= hour < 22:
+        shift_type = "DAY"
+    else:
+        shift_type = "NIGHT"
+    
+    # Try to create checklist
+    checklist_result = create_checklist_for_attendance(
+        db=db,
+        user=user,
+        site_id=payload.site_id,
+        attendance_id=None,  # No attendance record
+        shift_type=shift_type,
+        division="CLEANING",  # Specify division for cleaning
+    )
+    
+    # If no template found, create a default checklist with basic items
+    if not checklist_result:
+        from sqlalchemy.orm import joinedload
+        from app.divisions.security.models import ChecklistStatus, ChecklistItemStatus
+        
+        # Create checklist without template
+        checklist = Checklist(
+            company_id=current_user.get("company_id", 1),
+            user_id=current_user["id"],
+            site_id=payload.site_id,
+            attendance_id=None,
+            template_id=None,  # No template
+            division="CLEANING",
+            shift_date=today,
+            shift_type=shift_type,
+            status=ChecklistStatus.OPEN,
+        )
+        db.add(checklist)
+        db.flush()
+        
+        # Add default cleaning checklist items
+        default_items = [
+            {"title": "Pembersihan Area Umum", "description": "Membersihkan area umum dan koridor", "required": True},
+            {"title": "Pembersihan Toilet", "description": "Membersihkan dan mengecek kondisi toilet", "required": True},
+            {"title": "Pengecekan Sampah", "description": "Mengecek dan membuang sampah", "required": True},
+            {"title": "Pengecekan Perlengkapan", "description": "Mengecek ketersediaan sabun, tisu, dan perlengkapan lainnya", "required": False},
+        ]
+        
+        for order, item_data in enumerate(default_items, start=1):
+            item = ChecklistItem(
+                checklist_id=checklist.id,
+                template_item_id=None,  # No template item
+                order=order,
+                title=item_data["title"],
+                description=item_data["description"],
+                required=item_data["required"],
+                evidence_type="note",
+                status=ChecklistItemStatus.PENDING,
+            )
+            db.add(item)
+        
+        db.commit()
+        db.refresh(checklist)
+        
+        # Load with items for response
+        checklist_result = (
+            db.query(Checklist)
+            .options(joinedload(Checklist.items))
+            .filter(Checklist.id == checklist.id)
+            .first()
+        )
+        
+        return checklist_result
+    
+    # If template was found and checklist created, load with items
+    from sqlalchemy.orm import joinedload
+    checklist = (
+        db.query(Checklist)
+        .options(joinedload(Checklist.items))
+        .filter(Checklist.id == checklist_result.id)
+        .first()
+    )
+    
+    return checklist
+    
+    # Load items for response
+    from sqlalchemy.orm import joinedload
+    checklist = (
+        db.query(Checklist)
+        .options(joinedload(Checklist.items))
+        .filter(Checklist.id == checklist_result.id)
+        .first()
+    )
+    
+    return checklist
+
+@router.patch("/me/checklist/{checklist_id}/items/{item_id}/complete", response_model=security_schemas.ChecklistOut)
+async def complete_checklist_item(
+    checklist_id: int,
+    item_id: int,
+    payload: security_schemas.ChecklistItemUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Mark a checklist item as completed/not applicable/failed."""
+    from app.divisions.security.models import ChecklistStatus, ChecklistItemStatus
+    from sqlalchemy.orm import joinedload
+    
+    checklist = (
+        db.query(Checklist)
+        .filter(
+            Checklist.id == checklist_id,
+            Checklist.company_id == current_user.get("company_id", 1),
+            Checklist.user_id == current_user["id"],
+            Checklist.division == "CLEANING",
+        )
+        .first()
+    )
+    
+    if not checklist:
+        raise HTTPException(status_code=404, detail="Checklist not found")
+    
+    item = (
+        db.query(ChecklistItem)
+        .filter(
+            ChecklistItem.id == item_id,
+            ChecklistItem.checklist_id == checklist_id,
+        )
+        .first()
+    )
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Checklist item not found")
+    
+    # Update item status
+    if payload.status:
+        item.status = ChecklistItemStatus(payload.status)
+    
+    if payload.note is not None:
+        item.note = payload.note
+    
+    if payload.answer_bool is not None:
+        item.answer_bool = payload.answer_bool
+    if payload.answer_int is not None:
+        item.answer_int = payload.answer_int
+    if payload.answer_text is not None:
+        item.answer_text = payload.answer_text
+    
+    if payload.status in ["COMPLETED", "NOT_APPLICABLE", "FAILED"]:
+        from datetime import datetime
+        item.completed_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(item)
+    
+    # Update checklist status based on items
+    all_items = checklist.items
+    required_items = [i for i in all_items if i.required]
+    completed_required = [i for i in required_items if i.status == ChecklistItemStatus.COMPLETED]
+    
+    if len(completed_required) == len(required_items) and len(required_items) > 0:
+        checklist.status = ChecklistStatus.COMPLETED
+    elif any(i.status == ChecklistItemStatus.COMPLETED for i in all_items):
+        checklist.status = ChecklistStatus.INCOMPLETE
+    else:
+        checklist.status = ChecklistStatus.OPEN
+    
+    db.commit()
+    
+    # Reload with items
+    checklist = (
+        db.query(Checklist)
+        .options(joinedload(Checklist.items))
+        .filter(Checklist.id == checklist_id)
+        .first()
+    )
+    
+    return checklist
+
+# ---- Shift Calendar View ----
+
+@router.get("/shifts/calendar")
+def get_cleaning_shifts_calendar(
+    start: date = Query(...),
+    end: date = Query(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Get cleaning shifts for calendar view.
+    Returns shifts with status: ASSIGNED, OPEN
+    """
+    from app.core.logger import api_logger
+    
+    try:
+        company_id = current_user.get("company_id", 1)
+        user_id = current_user["id"]
+        
+        api_logger.info(f"Getting cleaning shifts calendar - user_id: {user_id}, start: {start}, end: {end}")
+        
+        # Get all cleaning shifts in date range
+        # Convert date to datetime for comparison
+        start_datetime = datetime.combine(start, datetime.min.time())
+        end_datetime = datetime.combine(end, datetime.max.time())
+        
+        shifts = (
+            db.query(Shift)
+            .filter(
+                Shift.company_id == company_id,
+                Shift.division == "CLEANING",  # Filter by division
+                Shift.shift_date >= start_datetime,
+                Shift.shift_date <= end_datetime,
+            )
+            .order_by(Shift.shift_date.asc(), Shift.start_time.asc())
+            .all()
+        )
+        
+        # Get sites for site names
+        site_ids = list(set([s.site_id for s in shifts]))
+        sites = db.query(Site.id, Site.name).filter(Site.id.in_(site_ids)).all() if site_ids else []
+        site_map = {s.id: s.name for s in sites}
+        
+        # Get users for user names
+        user_ids = list(set([s.user_id for s in shifts if s.user_id]))
+        users = db.query(User.id, User.username).filter(User.id.in_(user_ids)).all() if user_ids else []
+        user_map = {u.id: u.username for u in users}
+        
+        result = []
+        for shift in shifts:
+            # Build start/end datetime
+            start_time_str = shift.start_time or "08:00"
+            end_time_str = shift.end_time or "16:00"
+            
+            # Parse time strings (HH:MM)
+            start_hour, start_min = map(int, start_time_str.split(":"))
+            end_hour, end_min = map(int, end_time_str.split(":"))
+            
+            # Handle shift_date - it's DateTime, extract date part
+            shift_date_obj = shift.shift_date
+            if isinstance(shift_date_obj, datetime):
+                shift_date_only = shift_date_obj.date()
+            else:
+                shift_date_only = shift_date_obj
+            
+            # Handle night shift that ends next day
+            shift_start = datetime.combine(shift_date_only, datetime.min.time().replace(hour=start_hour, minute=start_min))
+            if end_hour < start_hour:  # Night shift (e.g., 22:00 to 06:00)
+                shift_end = datetime.combine(shift_date_only + timedelta(days=1), datetime.min.time().replace(hour=end_hour, minute=end_min))
+            else:
+                shift_end = datetime.combine(shift_date_only, datetime.min.time().replace(hour=end_hour, minute=end_min))
+            
+            # Determine shift status
+            shift_status = "ASSIGNED"
+            if shift.status == ShiftStatus.OPEN or (shift.status == ShiftStatus.ASSIGNED and shift.user_id is None):
+                shift_status = "OPEN"
+            
+            # Check if shift is assigned to current user
+            is_mine = shift.user_id == user_id if shift.user_id else False
+            
+            result.append({
+                "id": shift.id,
+                "start": shift_start.isoformat(),
+                "end": shift_end.isoformat(),
+                "siteId": shift.site_id,
+                "siteName": site_map.get(shift.site_id, f"Site {shift.site_id}"),
+                "roleType": "CLEANING",
+                "status": shift_status,
+                "isMine": is_mine,
+            })
+        
+        api_logger.info(f"Returning {len(result)} cleaning shifts for calendar")
+        return result
+        
+    except Exception as e:
+        from app.core.logger import api_logger
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error getting cleaning shifts calendar: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get cleaning shifts calendar: {error_msg}"
+        )
+
+@router.post("/shifts/{shift_id}/{action}")
+def shift_action(
+    shift_id: int,
+    action: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Handle shift actions: confirm, cancel, take
+    """
+    from app.core.logger import api_logger
+    
+    try:
+        company_id = current_user.get("company_id", 1)
+        user_id = current_user["id"]
+        
+        api_logger.info(f"Shift action - shift_id: {shift_id}, action: {action}, user_id: {user_id}")
+        
+        # Get shift
+        shift = (
+            db.query(Shift)
+            .filter(
+                Shift.id == shift_id,
+                Shift.company_id == company_id,
+                Shift.division == "CLEANING",  # Filter by division
+            )
+            .first()
+        )
+        
+        if not shift:
+            raise HTTPException(status_code=404, detail="Shift not found")
+        
+        if action == "confirm":
+            # Confirm assigned shift
+            if shift.user_id != user_id:
+                raise HTTPException(status_code=403, detail="You can only confirm your own shifts")
+            shift.status = ShiftStatus.ASSIGNED
+            api_logger.info(f"Shift {shift_id} confirmed by user {user_id}")
+            
+        elif action == "cancel":
+            # Cancel assigned shift
+            if shift.user_id != user_id:
+                raise HTTPException(status_code=403, detail="You can only cancel your own shifts")
+            shift.status = ShiftStatus.CANCELLED
+            shift.user_id = None
+            api_logger.info(f"Shift {shift_id} cancelled by user {user_id}")
+            
+        elif action == "take":
+            # Take open shift
+            if shift.status != ShiftStatus.OPEN:
+                raise HTTPException(status_code=400, detail="Shift is not open")
+            shift.status = ShiftStatus.ASSIGNED
+            shift.user_id = user_id
+            api_logger.info(f"Shift {shift_id} taken by user {user_id}")
+            
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
+        
+        shift.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(shift)
+        
+        return {"success": True, "message": f"Shift {action}ed successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        from app.core.logger import api_logger
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error in shift action: {error_type} - {error_msg}", exc_info=True)
+        try:
+            db.rollback()
+        except:
+            pass
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to {action} shift: {error_msg}"
+        )

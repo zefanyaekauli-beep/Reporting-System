@@ -10,8 +10,10 @@ from fastapi import (
     File,
     Form,
     Query,
+    Body,
 )
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
@@ -106,16 +108,31 @@ async def security_check_in(
             # Fallback to dict if user not found
             user = current_user
 
-        create_checklist_for_attendance(
+        checklist_result = create_checklist_for_attendance(
             db=db,
             user=user,
             site_id=site_id,
             attendance_id=attendance.id,
             shift_type=shift_type,
+            division="SECURITY",
         )
+        if checklist_result:
+            from app.core.logger import api_logger
+            api_logger.info(
+                f"Checklist created for user {current_user['id']}, "
+                f"site {site_id}, shift_type {shift_type}, checklist_id {checklist_result.id}"
+            )
+        else:
+            from app.core.logger import api_logger
+            api_logger.warning(
+                f"No checklist template found for user {current_user['id']}, "
+                f"site {site_id}, shift_type {shift_type}, division SECURITY. "
+                f"Please create a checklist template matching these criteria."
+            )
     except Exception as e:
         # Log error but don't fail check-in if checklist creation fails
-        print(f"Warning: Failed to create checklist on check-in: {e}")
+        from app.core.logger import api_logger
+        api_logger.error(f"Failed to create checklist on check-in: {e}", exc_info=True)
 
     return attendance
 
@@ -223,41 +240,149 @@ async def create_security_report(
     title: str = Form(...),
     description: Optional[str] = Form(None),
     severity: Optional[str] = Form(None),
-    evidence_files: Optional[List[UploadFile]] = File(None),
+    incident_category: Optional[str] = Form(None),
+    incident_level: Optional[str] = Form(None),
+    incident_severity_score: Optional[int] = Form(None),
+    perpetrator_name: Optional[str] = Form(None),
+    perpetrator_type: Optional[str] = Form(None),
+    evidence_files: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    # TODO: implement proper file storage (GCS, S3, local, etc.)
-    evidence_paths: List[str] = []
+    from app.core.logger import api_logger
+    
+    try:
+        api_logger.info(f"Creating security report - user_id: {current_user.get('id')}, site_id: {site_id}, title: {title[:50] if title else 'None'}")
+        
+        # Validate required fields
+        if not title or not title.strip():
+            api_logger.warning("Title is missing or empty")
+            raise HTTPException(status_code=400, detail="Title is required")
+        if not report_type or not report_type.strip():
+            api_logger.warning("Report type is missing or empty")
+            raise HTTPException(status_code=400, detail="Report type is required")
+        
+        # Get user info
+        user_id = current_user.get("id")
+        company_id = current_user.get("company_id", 1)
+        
+        if not user_id:
+            api_logger.error("User ID not found in token")
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
+        api_logger.info(f"User info - user_id: {user_id}, company_id: {company_id}")
+        
+        # TODO: implement proper file storage (GCS, S3, local, etc.)
+        evidence_paths: List[str] = []
 
-    if evidence_files:
-        for f in evidence_files:
-            # VERY naive: save to local "media/security_reports"
-            # Replace with your storage strategy.
-            filename = f"{int(datetime.utcnow().timestamp())}_{f.filename}"
-            path = f"{SECURITY_REPORTS_DIR}/{filename}"
-            with open(path, "wb") as out:
-                content = await f.read()
-                out.write(content)
-            evidence_paths.append(path)
+        if evidence_files:
+            try:
+                for f in evidence_files:
+                    # VERY naive: save to local "media/security_reports"
+                    # Replace with your storage strategy.
+                    filename = f"{int(datetime.utcnow().timestamp())}_{f.filename}"
+                    path = f"{SECURITY_REPORTS_DIR}/{filename}"
+                    with open(path, "wb") as out:
+                        content = await f.read()
+                        out.write(content)
+                    evidence_paths.append(path)
+                    api_logger.info(f"Saved evidence file: {path}")
+            except Exception as file_err:
+                # Log error without trying to serialize UploadFile objects
+                error_msg = str(file_err)
+                error_type = type(file_err).__name__
+                api_logger.error(
+                    f"Error saving evidence files: {error_type}: {error_msg}",
+                    exc_info=True
+                )
+                # Don't fail the whole request if file saving fails
+                pass
 
-    report = models.SecurityReport(
-        company_id=current_user.get("company_id", 1),
-        site_id=site_id,
-        user_id=current_user["id"],
-        report_type=report_type,
-        location_id=location_id,
-        location_text=location_text,
-        title=title,
-        description=description,
-        severity=severity,
-        evidence_paths=",".join(evidence_paths) if evidence_paths else None,
-    )
+        try:
+            # Validate site exists
+            from app.models.site import Site
+            site = db.query(Site).filter(Site.id == site_id).first()
+            if not site:
+                api_logger.warning(f"Site {site_id} not found")
+                raise HTTPException(status_code=404, detail=f"Site with ID {site_id} not found")
+            
+            # Prepare report data
+            report_data = {
+                "company_id": company_id,
+                "site_id": site_id,
+                "user_id": user_id,
+                "division": "SECURITY",
+                "report_type": report_type.strip(),
+                "location_id": location_id,
+                "location_text": location_text.strip() if location_text else None,
+                "title": title.strip(),
+                "description": description.strip() if description else None,
+                "severity": severity.strip() if severity else None,
+                "status": "open",
+                "evidence_paths": ",".join(evidence_paths) if evidence_paths else None,
+                "reported_at": datetime.utcnow(),
+            }
+            
+            # Add incident fields if provided
+            if incident_category:
+                report_data["incident_category"] = incident_category.strip()
+            if incident_level:
+                report_data["incident_level"] = incident_level.strip()
+            if incident_severity_score is not None:
+                report_data["incident_severity_score"] = incident_severity_score
+            if perpetrator_name:
+                report_data["perpetrator_name"] = perpetrator_name.strip()
+            if perpetrator_type:
+                report_data["perpetrator_type"] = perpetrator_type.strip()
+            
+            api_logger.info(f"Creating report with data: company_id={report_data['company_id']}, site_id={report_data['site_id']}, user_id={report_data['user_id']}, division={report_data['division']}, title={report_data['title'][:50]}")
+            
+            report = models.SecurityReport(**report_data)
 
-    db.add(report)
-    db.commit()
-    db.refresh(report)
-    return report
+            db.add(report)
+            db.flush()  # Flush to get ID without committing
+            api_logger.info(f"Report added to session, ID: {report.id}")
+            
+            db.commit()
+            db.refresh(report)
+            api_logger.info(f"Security report created successfully - report_id: {report.id}")
+            return report
+        except Exception as db_err:
+            db.rollback()
+            # Log error without trying to serialize complex objects
+            error_msg = str(db_err)
+            error_type = type(db_err).__name__
+            api_logger.error(
+                f"Database error creating security report: {error_type}: {error_msg}",
+                exc_info=True
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to save report to database: {error_msg}"
+            )
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        try:
+            db.rollback()
+        except:
+            pass
+        raise
+    except Exception as e:
+        # Log error without trying to serialize UploadFile objects
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(
+            f"Unexpected error creating security report: {error_type}: {error_msg}",
+            exc_info=True
+        )
+        try:
+            db.rollback()
+        except:
+            pass
+        raise HTTPException(
+            status_code=500,
+            detail=f"An internal error occurred. Please try again later."
+        )
 
 @router.get("/reports", response_model=List[schemas.SecurityReportOut])
 def list_security_reports(
@@ -268,7 +393,8 @@ def list_security_reports(
     current_user=Depends(get_current_user),
 ):
     q = db.query(models.SecurityReport).filter(
-        models.SecurityReport.company_id == current_user.get("company_id", 1)
+        models.SecurityReport.company_id == current_user.get("company_id", 1),
+        models.SecurityReport.division == "SECURITY",  # Filter by division
     )
 
     if site_id is not None:
@@ -292,6 +418,7 @@ def get_security_report(
         .filter(
             models.SecurityReport.id == report_id,
             models.SecurityReport.company_id == current_user.get("company_id", 1),
+            models.SecurityReport.division == "SECURITY",  # Filter by division
         )
         .first()
     )
@@ -317,6 +444,7 @@ def export_security_report_pdf(
         .filter(
             models.SecurityReport.id == report_id,
             models.SecurityReport.company_id == current_user.get("company_id", 1),
+            models.SecurityReport.division == "SECURITY",  # Filter by division
         )
         .first()
     )
@@ -368,7 +496,8 @@ def export_security_reports_summary_pdf(
     from app.models.site import Site
     
     q = db.query(models.SecurityReport).filter(
-        models.SecurityReport.company_id == current_user.get("company_id", 1)
+        models.SecurityReport.company_id == current_user.get("company_id", 1),
+        models.SecurityReport.division == "SECURITY",  # Filter by division
     )
 
     if site_id is not None:
@@ -426,6 +555,9 @@ async def create_patrol_log(
     area_text: Optional[str] = Form(None),
     notes: Optional[str] = Form(None),
     main_photo: Optional[UploadFile] = File(None),
+    patrol_type: Optional[str] = Form(None),  # "FOOT", "VEHICLE", "MIXED"
+    route_id: Optional[int] = Form(None),
+    team_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -448,6 +580,9 @@ async def create_patrol_log(
         area_text=area_text,
         notes=notes,
         main_photo_path=photo_path,
+        patrol_type=patrol_type,
+        route_id=route_id,
+        team_id=team_id,
     )
 
     db.add(log)
@@ -455,14 +590,19 @@ async def create_patrol_log(
     db.refresh(log)
     return log
 
-@router.get("/patrols", response_model=List[schemas.SecurityPatrolLogOut])
+@router.get("/patrols", response_model=List[dict])
 def list_patrol_logs(
     site_id: Optional[int] = Query(None),
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
+    limit: Optional[int] = Query(200),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    """List patrol logs with user and site information."""
+    from app.models.user import User
+    from app.models.site import Site
+    
     q = db.query(models.SecurityPatrolLog).filter(
         models.SecurityPatrolLog.company_id == current_user.get("company_id", 1)
     )
@@ -474,8 +614,343 @@ def list_patrol_logs(
     if to_date is not None:
         q = q.filter(models.SecurityPatrolLog.start_time <= datetime.combine(to_date, datetime.max.time()))
 
-    q = q.order_by(models.SecurityPatrolLog.start_time.desc()).limit(200)
-    return q.all()
+    q = q.order_by(models.SecurityPatrolLog.start_time.desc()).limit(limit or 200)
+    patrols = q.all()
+    
+    # Batch load users and sites
+    from app.core.utils import batch_load_users_and_sites
+    user_ids = list(set(p.user_id for p in patrols))
+    site_ids = list(set(p.site_id for p in patrols))
+    users_map, sites_map = batch_load_users_and_sites(db, user_ids, site_ids)
+    
+    # Enhance with user and site names
+    result = []
+    for patrol in patrols:
+        user = users_map.get(patrol.user_id)
+        site = sites_map.get(patrol.site_id)
+        
+        # Handle status safely - check if attribute exists
+        status_value = None
+        if hasattr(patrol, 'status') and patrol.status is not None:
+            if hasattr(patrol.status, 'value'):
+                status_value = patrol.status.value
+            else:
+                status_value = str(patrol.status)
+        else:
+            # Default status based on end_time
+            status_value = "completed" if patrol.end_time else "partial"
+        
+        result.append({
+            "id": patrol.id,
+            "user_id": patrol.user_id,
+            "officer_name": user.username if user else f"User {patrol.user_id}",
+            "site_id": patrol.site_id,
+            "site_name": site.name if site else f"Site {patrol.site_id}",
+            "start_time": patrol.start_time.isoformat(),
+            "end_time": patrol.end_time.isoformat() if patrol.end_time else None,
+            "area_text": getattr(patrol, 'area_text', getattr(patrol, 'area_covered', None)),
+            "status": status_value,
+            "notes": getattr(patrol, 'notes', None),
+            "patrol_type": getattr(patrol, 'patrol_type', None),
+            "distance_covered": getattr(patrol, 'distance_covered', None),
+            "steps_count": getattr(patrol, 'steps_count', None),
+        })
+    
+    return result
+
+@router.get("/patrols/{patrol_id}/gps-track")
+def get_patrol_gps_track(
+    patrol_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Get GPS track data for a patrol."""
+    from app.core.logger import api_logger
+    from app.models.gps_track import GPSTrack
+    
+    try:
+        # Verify patrol exists
+        patrol = (
+            db.query(models.SecurityPatrolLog)
+            .filter(
+                models.SecurityPatrolLog.id == patrol_id,
+                models.SecurityPatrolLog.company_id == current_user.get("company_id", 1),
+            )
+            .first()
+        )
+        
+        if not patrol:
+            raise HTTPException(status_code=404, detail="Patrol log not found")
+        
+        # Get GPS tracks
+        tracks = (
+            db.query(GPSTrack)
+            .filter(
+                GPSTrack.track_type == "PATROL",
+                GPSTrack.track_reference_id == patrol_id,
+            )
+            .order_by(GPSTrack.recorded_at.asc())
+            .all()
+        )
+        
+        result = [
+            {
+                "latitude": track.latitude,
+                "longitude": track.longitude,
+                "altitude": track.altitude,
+                "accuracy": track.accuracy,
+                "speed": track.speed,
+                "recorded_at": track.recorded_at.isoformat(),
+                "is_mock_location": track.is_mock_location,
+            }
+            for track in tracks
+        ]
+        
+        api_logger.info(f"Retrieved {len(result)} GPS track points for patrol {patrol_id}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        from app.core.logger import api_logger
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error getting GPS track: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get GPS track: {error_msg}"
+        )
+
+@router.get("/patrols/active")
+def get_active_patrols(
+    site_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Get active patrols with GPS location."""
+    from app.core.logger import api_logger
+    from app.models.user import User
+    from app.models.site import Site
+    from app.models.gps_track import GPSTrack
+    
+    try:
+        company_id = current_user.get("company_id", 1)
+        
+        patrols = (
+            db.query(models.SecurityPatrolLog)
+            .filter(
+                models.SecurityPatrolLog.company_id == company_id,
+                models.SecurityPatrolLog.end_time.is_(None),
+            )
+        )
+        
+        if site_id:
+            patrols = patrols.filter(models.SecurityPatrolLog.site_id == site_id)
+        
+        patrols = patrols.order_by(models.SecurityPatrolLog.start_time.desc()).all()
+        
+        result = []
+        for patrol in patrols:
+            user = db.query(User).filter(User.id == patrol.user_id).first()
+            site = db.query(Site).filter(Site.id == patrol.site_id).first()
+            
+            # Get latest GPS track
+            latest_track = (
+                db.query(GPSTrack)
+                .filter(
+                    GPSTrack.track_type == "PATROL",
+                    GPSTrack.track_reference_id == patrol.id,
+                )
+                .order_by(GPSTrack.recorded_at.desc())
+                .first()
+            )
+            
+            result.append({
+                "id": patrol.id,
+                "user_id": patrol.user_id,
+                "user_name": user.username if user else f"User {patrol.user_id}",
+                "site_id": patrol.site_id,
+                "site_name": site.name if site else f"Site {patrol.site_id}",
+                "start_time": patrol.start_time.isoformat(),
+                "area_text": getattr(patrol, 'area_text', getattr(patrol, 'area_covered', None)),
+                "current_location": {
+                    "latitude": getattr(latest_track, 'latitude', None),
+                    "longitude": getattr(latest_track, 'longitude', None),
+                    "recorded_at": latest_track.recorded_at.isoformat() if latest_track and hasattr(latest_track, 'recorded_at') else None,
+                    "accuracy": getattr(latest_track, 'accuracy', None),
+                } if latest_track else None,
+            })
+        
+        api_logger.info(f"Retrieved {len(result)} active patrols")
+        return result
+        
+    except Exception as e:
+        from app.core.logger import api_logger
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error getting active patrols: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get active patrols: {error_msg}"
+        )
+
+@router.get("/patrols/{patrol_id}/detail")
+def get_patrol_detail(
+    patrol_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Get detailed patrol information including checkpoints, GPS track, photos, timeline."""
+    from app.core.logger import api_logger
+    from app.models.user import User
+    from app.models.site import Site
+    from app.models.gps_track import GPSTrack
+    from app.divisions.security.models import PatrolCheckpointScan
+    
+    try:
+        patrol = (
+            db.query(models.SecurityPatrolLog)
+            .filter(
+                models.SecurityPatrolLog.id == patrol_id,
+                models.SecurityPatrolLog.company_id == current_user.get("company_id", 1),
+            )
+            .first()
+        )
+        
+        if not patrol:
+            raise HTTPException(status_code=404, detail="Patrol log not found")
+        
+        # Get user and site info
+        user = db.query(User).filter(User.id == patrol.user_id).first()
+        site = db.query(Site).filter(Site.id == patrol.site_id).first()
+        
+        # Get GPS track
+        gps_tracks = (
+            db.query(GPSTrack)
+            .filter(
+                GPSTrack.track_type == "PATROL",
+                GPSTrack.track_reference_id == patrol_id,
+            )
+            .order_by(GPSTrack.recorded_at.asc())
+            .all()
+        )
+        
+        # Get checkpoint scans
+        checkpoint_scans = (
+            db.query(PatrolCheckpointScan)
+            .filter(
+                PatrolCheckpointScan.user_id == patrol.user_id,
+                PatrolCheckpointScan.scan_time >= patrol.start_time,
+                PatrolCheckpointScan.scan_time <= (patrol.end_time or datetime.utcnow()),
+            )
+            .order_by(PatrolCheckpointScan.scan_time.asc())
+            .all()
+        )
+        
+        # Build timeline
+        timeline = []
+        timeline.append({
+            "time": patrol.start_time.isoformat(),
+            "type": "START",
+            "description": "Patrol started",
+            "location": getattr(patrol, 'area_text', getattr(patrol, 'area_covered', None)),
+        })
+        
+        for scan in checkpoint_scans:
+            checkpoint = db.query(models.PatrolCheckpoint).filter(
+                models.PatrolCheckpoint.id == scan.checkpoint_id
+            ).first()
+            timeline.append({
+                "time": scan.scan_time.isoformat(),
+                "type": "CHECKPOINT",
+                "description": f"Scanned checkpoint: {checkpoint.name if checkpoint else 'Unknown'}",
+                "location": f"{scan.latitude}, {scan.longitude}" if scan.latitude else None,
+                "is_valid": scan.is_valid,
+            })
+        
+        if patrol.end_time:
+            timeline.append({
+                "time": patrol.end_time.isoformat(),
+                "type": "END",
+                "description": "Patrol ended",
+            })
+        
+        # Build photos list
+        photos = []
+        if patrol.main_photo_path:
+            photos.append({
+                "path": patrol.main_photo_path,
+                "type": "main",
+            })
+        
+        # Calculate duration
+        duration_minutes = None
+        if patrol.end_time:
+            duration_seconds = (patrol.end_time - patrol.start_time).total_seconds()
+            duration_minutes = int(duration_seconds / 60)
+        
+        result = {
+            "id": patrol.id,
+            "user": {
+                "id": patrol.user_id,
+                "name": user.username if user else f"User {patrol.user_id}",
+            },
+            "site": {
+                "id": patrol.site_id,
+                "name": site.name if site else f"Site {patrol.site_id}",
+            },
+            "start_time": patrol.start_time.isoformat(),
+            "end_time": patrol.end_time.isoformat() if patrol.end_time else None,
+            "duration_minutes": duration_minutes,
+            "area_text": getattr(patrol, 'area_text', getattr(patrol, 'area_covered', None)),
+            "notes": getattr(patrol, 'notes', None),
+            "patrol_type": patrol.patrol_type,
+            "distance_covered": patrol.distance_covered,
+            "steps_count": patrol.steps_count,
+            "photos": photos,
+            "gps_tracks": [
+                {
+                    "latitude": track.latitude,
+                    "longitude": track.longitude,
+                    "recorded_at": track.recorded_at.isoformat(),
+                    "accuracy": track.accuracy,
+                    "speed": track.speed,
+                }
+                for track in gps_tracks
+            ],
+            "checkpoint_scans": [
+                {
+                    "checkpoint_id": scan.checkpoint_id,
+                    "checkpoint_name": db.query(models.PatrolCheckpoint)
+                        .filter(models.PatrolCheckpoint.id == scan.checkpoint_id)
+                        .first().name if db.query(models.PatrolCheckpoint)
+                        .filter(models.PatrolCheckpoint.id == scan.checkpoint_id)
+                        .first() else "Unknown",
+                    "scan_time": scan.scan_time.isoformat(),
+                    "scan_method": scan.scan_method,
+                    "latitude": scan.latitude,
+                    "longitude": scan.longitude,
+                    "is_valid": scan.is_valid,
+                }
+                for scan in checkpoint_scans
+            ],
+            "timeline": timeline,
+        }
+        
+        api_logger.info(f"Retrieved patrol detail {patrol_id} for user {current_user.get('id')}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        from app.core.logger import api_logger
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error getting patrol detail: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get patrol detail: {error_msg}"
+        )
 
 # ---- Checklist Endpoints (Guard) ----
 
@@ -485,24 +960,197 @@ def get_today_checklist(
     current_user=Depends(get_current_user),
 ):
     """Get today's checklist for current user."""
+    # #region agent log
+    import json
+    import os
+    import time
+    try:
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        log_path = os.path.join(project_root, '.cursor', 'debug.log')
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"location": "security/routes.py:483", "message": "get_today_checklist called", "data": {"user_id": current_user.get("id"), "company_id": current_user.get("company_id", 1)}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "checklist-debug", "hypothesisId": "A"}) + "\n")
+    except Exception as log_err: pass
+    # #endregion
     from fastapi import status as http_status
     today = date.today()
+    # #region agent log
+    try:
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"location": "security/routes.py:490", "message": "Query parameters", "data": {"today": str(today), "user_id": current_user.get("id"), "company_id": current_user.get("company_id", 1)}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "checklist-debug", "hypothesisId": "B"}) + "\n")
+    except: pass
+    # #endregion
+    from sqlalchemy.orm import joinedload
     checklist = (
         db.query(models.Checklist)
+        .options(joinedload(models.Checklist.items))
         .filter(
             models.Checklist.company_id == current_user.get("company_id", 1),
             models.Checklist.user_id == current_user["id"],
             models.Checklist.shift_date == today,
+            models.Checklist.division == "SECURITY",
         )
         .order_by(models.Checklist.id.desc())
         .first()
     )
     
+    # #region agent log
+    try:
+        # Check if there are any checklists for this user (any date, any division)
+        all_checklists = db.query(models.Checklist).filter(
+            models.Checklist.company_id == current_user.get("company_id", 1),
+            models.Checklist.user_id == current_user["id"],
+        ).all()
+        # Check security checklists specifically
+        security_checklists = db.query(models.Checklist).filter(
+            models.Checklist.company_id == current_user.get("company_id", 1),
+            models.Checklist.user_id == current_user["id"],
+            models.Checklist.division == "SECURITY",
+        ).all()
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"location": "security/routes.py:500", "message": "Query result", "data": {"checklist_found": checklist is not None, "checklist_id": checklist.id if checklist else None, "checklist_division": checklist.division if checklist else None, "total_checklists_for_user": len(all_checklists), "total_security_checklists": len(security_checklists), "checklist_dates": [str(c.shift_date) for c in all_checklists[:5]], "security_checklist_dates": [str(c.shift_date) for c in security_checklists[:5]]}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "checklist-debug", "hypothesisId": "C"}) + "\n")
+    except: pass
+    # #endregion
+    
     if not checklist:
+        # #region agent log
+        try:
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps({"location": "security/routes.py:502", "message": "No checklist found, raising 404", "data": {"today": str(today)}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "checklist-debug", "hypothesisId": "D"}) + "\n")
+        except: pass
+        # #endregion
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND,
             detail="No checklist for today",
         )
+    
+    # #region agent log
+    try:
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"location": "security/routes.py:508", "message": "Checklist found, returning", "data": {"checklist_id": checklist.id, "shift_date": str(checklist.shift_date), "division": checklist.division, "status": checklist.status.value if hasattr(checklist.status, 'value') else str(checklist.status)}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "checklist-debug", "hypothesisId": "E"}) + "\n")
+    except: pass
+    # #endregion
+    return checklist
+
+@router.post("/me/checklist/create", response_model=schemas.ChecklistOut)
+def create_checklist_manually(
+    payload: schemas.CreateChecklistRequest = Body(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Manually create checklist for today if it doesn't exist.
+    Useful when checklist wasn't created during check-in.
+    """
+    from fastapi import status as http_status
+    today = date.today()
+    
+    # Check if checklist already exists
+    existing = (
+        db.query(models.Checklist)
+        .filter(
+            models.Checklist.company_id == current_user.get("company_id", 1),
+            models.Checklist.user_id == current_user["id"],
+            models.Checklist.site_id == payload.site_id,
+            models.Checklist.shift_date == today,
+            models.Checklist.division == "SECURITY",
+        )
+        .first()
+    )
+    
+    if existing:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Checklist already exists for today"
+        )
+    
+    # Get User model
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not user:
+        user = current_user
+    
+    # Determine shift type based on current time
+    now = datetime.utcnow()
+    hour = now.hour
+    shift_type = None
+    if 6 <= hour < 14:
+        shift_type = "MORNING"
+    elif 14 <= hour < 22:
+        shift_type = "DAY"
+    else:
+        shift_type = "NIGHT"
+    
+    # Try to create checklist
+    checklist_result = create_checklist_for_attendance(
+        db=db,
+        user=user,
+        site_id=payload.site_id,
+        attendance_id=None,  # No attendance record
+        shift_type=shift_type,
+        division="SECURITY",  # Specify division for security
+    )
+    
+    # If no template found, create a default checklist with basic items
+    if not checklist_result:
+        from sqlalchemy.orm import joinedload
+        
+        # Create checklist without template
+        checklist = models.Checklist(
+            company_id=current_user.get("company_id", 1),
+            user_id=current_user["id"],
+            site_id=payload.site_id,
+            attendance_id=None,
+            template_id=None,  # No template
+            division="SECURITY",
+            shift_date=today,
+            shift_type=shift_type,
+            status=models.ChecklistStatus.OPEN,
+        )
+        db.add(checklist)
+        db.flush()
+        
+        # Add default security checklist items
+        default_items = [
+            {"title": "Patrol Area", "description": "Melakukan patrol di area yang ditugaskan", "required": True},
+            {"title": "Cek Keamanan", "description": "Memeriksa keamanan area dan peralatan", "required": True},
+            {"title": "Laporan Insiden", "description": "Melaporkan insiden atau kejadian yang terjadi", "required": False},
+            {"title": "Cek CCTV", "description": "Memeriksa kondisi dan fungsi CCTV", "required": False},
+        ]
+        
+        for order, item_data in enumerate(default_items, start=1):
+            item = models.ChecklistItem(
+                checklist_id=checklist.id,
+                template_item_id=None,  # No template item
+                order=order,
+                title=item_data["title"],
+                description=item_data["description"],
+                required=item_data["required"],
+                evidence_type="note",
+                status=models.ChecklistItemStatus.PENDING,
+            )
+            db.add(item)
+        
+        db.commit()
+        db.refresh(checklist)
+        
+        # Load with items for response
+        checklist = (
+            db.query(models.Checklist)
+            .options(joinedload(models.Checklist.items))
+            .filter(models.Checklist.id == checklist.id)
+            .first()
+        )
+        
+        return checklist
+    
+    # Load items for response
+    from sqlalchemy.orm import joinedload
+    checklist = (
+        db.query(models.Checklist)
+        .options(joinedload(models.Checklist.items))
+        .filter(models.Checklist.id == checklist_result.id)
+        .first()
+    )
     
     return checklist
 
@@ -876,6 +1524,38 @@ def acknowledge_panic_alert(
     db.refresh(alert)
     return {"message": "Alert acknowledged", "alert": alert}
 
+
+@router.post("/panic/alerts/{alert_id}/resolve")
+def resolve_panic_alert(
+    alert_id: int,
+    resolution_notes: str = Body(..., description="Resolution notes/message"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Resolve a panic alert with resolution notes."""
+    alert = (
+        db.query(models.PanicAlert)
+        .filter(
+            models.PanicAlert.id == alert_id,
+            models.PanicAlert.company_id == current_user.get("company_id", 1),
+        )
+        .first()
+    )
+    
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    if alert.status == "resolved":
+        raise HTTPException(status_code=400, detail="Alert already resolved")
+    
+    alert.status = "resolved"
+    alert.resolved_at = datetime.utcnow()
+    alert.resolution_notes = resolution_notes
+    
+    db.commit()
+    db.refresh(alert)
+    return {"message": "Alert resolved", "alert": alert}
+
 # ---- DAR & Passdown Endpoints ----
 
 @router.post("/dar/generate", response_model=schemas.DailyActivityReportBase)
@@ -994,10 +1674,28 @@ def list_passdown_notes(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """List shift handover notes."""
+    """List shift handover notes. Only shows notes from same division as current user (except supervisor/admin)."""
+    from app.models.user import User
+    
+    company_id = current_user.get("company_id", 1)
+    user_role = current_user.get("role", "").lower()
+    user_division = current_user.get("division", "").lower() if current_user.get("division") else None
+    
+    # Supervisor and admin can see all passdown notes
+    is_supervisor_or_admin = user_role in ["supervisor", "admin"]
+    
     q = db.query(models.ShiftHandover).filter(
-        models.ShiftHandover.company_id == current_user.get("company_id", 1)
+        models.ShiftHandover.company_id == company_id
     )
+    
+    # Filter by division: only show passdown notes from users in the same division
+    # Exception: supervisor and admin can see all
+    if not is_supervisor_or_admin and user_division:
+        # Join with User table to filter by division
+        q = q.join(User, models.ShiftHandover.from_user_id == User.id).filter(
+            User.company_id == company_id,
+            User.division == user_division
+        )
     
     if site_id:
         q = q.filter(models.ShiftHandover.site_id == site_id)
@@ -1015,18 +1713,39 @@ def acknowledge_passdown_note(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Acknowledge a passdown note."""
+    """Acknowledge a passdown note. Only allows acknowledging notes from same division (except supervisor/admin)."""
+    from app.models.user import User
+    
+    company_id = current_user.get("company_id", 1)
+    user_role = current_user.get("role", "").lower()
+    user_division = current_user.get("division", "").lower() if current_user.get("division") else None
+    
+    # Supervisor and admin can acknowledge any passdown note
+    is_supervisor_or_admin = user_role in ["supervisor", "admin"]
+    
     note = (
         db.query(models.ShiftHandover)
         .filter(
             models.ShiftHandover.id == note_id,
-            models.ShiftHandover.company_id == current_user.get("company_id", 1),
+            models.ShiftHandover.company_id == company_id,
         )
         .first()
     )
     
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
+    
+    # Check if user can acknowledge this note (same division or supervisor/admin)
+    if not is_supervisor_or_admin and user_division:
+        # Get the division of the user who created the passdown note
+        from_user = db.query(User).filter(User.id == note.from_user_id).first()
+        if from_user and from_user.division:
+            from_user_division = from_user.division.lower()
+            if from_user_division != user_division:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can only acknowledge passdown notes from your division"
+                )
     
     note.status = "acknowledged"
     note.acknowledged_by_user_id = current_user["id"]

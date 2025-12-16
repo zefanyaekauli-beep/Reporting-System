@@ -10,6 +10,7 @@ import {
   listSites,
   Site,
 } from "../../../api/supervisorApi";
+import * as XLSX from "xlsx";
 
 export function SupervisorAttendancePage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -30,6 +31,7 @@ export function SupervisorAttendancePage() {
   const [roleType, setRoleType] = useState<string>(""); // SECURITY, CLEANING, DRIVER, PARKING (empty = all)
   const [statusFilter, setStatusFilter] = useState<string>(""); // on_duty, completed, late, no_show, early_checkout
   const [showFilters, setShowFilters] = useState(true); // Show filters by default
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadSites();
@@ -98,6 +100,69 @@ export function SupervisorAttendancePage() {
     }
   };
 
+  const exportToExcel = () => {
+    if (records.length === 0) {
+      setErrorMsg("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    setExporting(true);
+    try {
+      // Prepare data for Excel
+      const excelData = records.map((r) => ({
+        "Nama": r.user_name || `User #${r.user_id}`,
+        "Site": r.site_name,
+        "Divisi": r.role_type,
+        "Check-in": new Date(r.checkin_time).toLocaleString("id-ID"),
+        "Check-out": r.checkout_time ? new Date(r.checkout_time).toLocaleString("id-ID") : "OPEN",
+        "Shift": r.shift || "-",
+        "Overtime": r.is_overtime ? "Ya" : "Tidak",
+        "Backup": r.is_backup ? "Ya" : "Tidak",
+        "GPS Valid": r.gps_valid === true ? "Ya" : r.gps_valid === false ? "Tidak" : "-",
+        "Photo Evidence": r.photo_evidence ? "Ya" : "Tidak",
+        "Status": r.status === "IN_PROGRESS" ? "On-duty" : "Completed",
+      }));
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // Set column widths
+      const colWidths = [
+        { wch: 20 }, // Nama
+        { wch: 20 }, // Site
+        { wch: 12 }, // Divisi
+        { wch: 20 }, // Check-in
+        { wch: 20 }, // Check-out
+        { wch: 10 }, // Shift
+        { wch: 10 }, // Overtime
+        { wch: 10 }, // Backup
+        { wch: 12 }, // GPS Valid
+        { wch: 12 }, // Photo Evidence
+        { wch: 12 }, // Status
+      ];
+      ws["!cols"] = colWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+
+      // Generate filename
+      const siteName = siteId ? sites.find((s) => s.id === siteId)?.name || "" : "All";
+      const name = `Attendance_${siteName}_${dateFrom}_${dateTo}`.replace(/[^a-z0-9_\-]/gi, "_");
+      const filename = `${name}.xlsx`;
+
+      // Write file
+      XLSX.writeFile(wb, filename);
+      setErrorMsg("");
+    } catch (err: any) {
+      console.error("Export Excel error:", err);
+      setErrorMsg("Gagal mengekspor ke Excel");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+
   useEffect(() => {
     loadAttendance();
   }, [dateFrom, dateTo, siteId, roleType, statusFilter]);
@@ -120,28 +185,54 @@ export function SupervisorAttendancePage() {
               justifyContent: "space-between",
               alignItems: "center",
               marginBottom: showFilters ? 12 : 0,
+              flexWrap: "wrap",
+              gap: 8,
             }}
           >
-            <div style={{ fontSize: 14, fontWeight: 600, color: theme.colors.textMain }}>
-              Attendance Console
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: theme.colors.textMain }}>
+                Attendance Console
+              </div>
+              <div style={{ fontSize: 11, color: theme.colors.textMuted, marginTop: 2 }}>
+                Unified attendance view for all divisions (Security, Cleaning, Driver)
+              </div>
             </div>
-            <div style={{ fontSize: 11, color: theme.colors.textMuted, marginTop: 2 }}>
-              Unified attendance view for all divisions (Security, Cleaning, Driver)
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                onClick={exportToExcel}
+                disabled={exporting || records.length === 0}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  borderRadius: theme.radius.pill,
+                  border: `1px solid ${theme.colors.success}`,
+                  backgroundColor: exporting || records.length === 0 ? theme.colors.border : theme.colors.success,
+                  color: "#fff",
+                  cursor: exporting || records.length === 0 ? "not-allowed" : "pointer",
+                  opacity: exporting || records.length === 0 ? 0.6 : 1,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+                title="Export to Excel"
+              >
+                📊 Excel
+              </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  borderRadius: theme.radius.pill,
+                  border: `1px solid ${theme.colors.border}`,
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.textMain,
+                  cursor: "pointer",
+                }}
+              >
+                {showFilters ? "Sembunyikan" : "Tampilkan"}
+              </button>
             </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              style={{
-                padding: "4px 12px",
-                fontSize: 12,
-                borderRadius: theme.radius.pill,
-                border: `1px solid ${theme.colors.border}`,
-                backgroundColor: theme.colors.surface,
-                color: theme.colors.textMain,
-                cursor: "pointer",
-              }}
-            >
-              {showFilters ? "Sembunyikan" : "Tampilkan"}
-            </button>
           </div>
 
           {showFilters && (
@@ -412,8 +503,8 @@ export function SupervisorAttendancePage() {
                             borderRadius: theme.radius.pill,
                             backgroundColor:
                               r.status === "IN_PROGRESS"
-                                ? theme.colors.warningSoft
-                                : theme.colors.successSoft,
+                                ? theme.colors.warning + "20"
+                                : theme.colors.success + "20",
                             color:
                               r.status === "IN_PROGRESS"
                                 ? theme.colors.warning
@@ -602,8 +693,8 @@ export function SupervisorAttendancePage() {
                           borderRadius: theme.radius.pill,
                           backgroundColor:
                             r.status === "IN_PROGRESS"
-                              ? theme.colors.warningSoft
-                              : theme.colors.successSoft,
+                              ? theme.colors.warning + "20"
+                              : theme.colors.success + "20",
                           color:
                             r.status === "IN_PROGRESS"
                               ? theme.colors.warning

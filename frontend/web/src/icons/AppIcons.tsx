@@ -92,4 +92,3 @@ export const AppIcons: Record<IconKey, (props?: { className?: string }) => React
     );
   },
 };
-

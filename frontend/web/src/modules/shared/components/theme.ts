@@ -6,6 +6,7 @@ export const theme = {
     appBg: "#FFFFF0", // ivory/cream background
     background: "#FFFFF0", // ivory/cream app background
     surface: "#FFFFFF", // white cards
+    bgSecondary: "#F8FAFC", // light gray for secondary backgrounds
     
     // Brand
     brand: "#2563EB", // blue (kept for compatibility)

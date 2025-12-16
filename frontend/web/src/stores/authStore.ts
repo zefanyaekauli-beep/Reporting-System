@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type Division = "security" | "cleaning" | "parking";
+type Division = "security" | "cleaning" | "parking" | "driver";
 
 interface UserInfo {
   id: number;

@@ -1,6 +1,6 @@
 /**
- * Security Dashboard (Guard Home) - Verolux CCTV AI Style
- * Mobile-first action board with clear hierarchy
+ * Security Dashboard - Statistics Focus
+ * Focus on numbers and metrics for field officers
  */
 
 import { useEffect, useState } from "react";
@@ -10,12 +10,14 @@ import { useTranslation } from "../../../i18n/useTranslation";
 import { SiteSelector, SiteOption } from "../../shared/components/SiteSelector";
 import { getTodayAttendance, getTodayChecklist } from "../../../api/securityApi";
 import { PengumumanCard } from "../../shared/components/PengumumanCard";
-// Design system - using direct Tailwind classes
 import { DashboardCard } from "../../shared/components/ui/DashboardCard";
 import { IconActionButton } from "../../shared/components/ui/IconActionButton";
 import { KpiCard } from "../../shared/components/ui/KpiCard";
 import { AppIcons } from "../../../icons/AppIcons";
 import api from "../../../api/client";
+import { PermissionGate } from "../../../components/PermissionGate";
+import { RoleBasedAccess } from "../../../components/RoleBasedAccess";
+import { UserRoleBadge } from "../../../components/UserRoleBadge";
 
 interface Attendance {
   id: number;
@@ -34,7 +36,7 @@ interface ReportsSummary {
 export function SecurityDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  
+
   const [sites] = useState<SiteOption[]>([
     { id: 1, name: "Situs A" },
     { id: 2, name: "Situs B" },
@@ -52,7 +54,6 @@ export function SecurityDashboardPage() {
     incomplete: number;
     status: string | null;
   } | null>(null);
-  const [checklistItems, setChecklistItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const hasCheckIn = !!attendance?.check_in_time;
@@ -66,6 +67,22 @@ export function SecurityDashboardPage() {
     if (hour < 19) return "Selamat Sore";
     return "Selamat Malam";
   };
+
+  // Calculate shift duration
+  const shiftDuration = () => {
+    if (!attendance?.check_in_time) return null;
+    const checkIn = new Date(attendance.check_in_time);
+    const checkOut = attendance?.check_out_time ? new Date(attendance.check_out_time) : new Date();
+    const diffMs = checkOut.getTime() - checkIn.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${diffHours}j ${diffMinutes}m`;
+  };
+
+  // Calculate checklist completion percentage
+  const checklistPercent = checklistSummary && checklistSummary.total > 0
+    ? ((checklistSummary.completed / checklistSummary.total) * 100).toFixed(0)
+    : "0";
 
   useEffect(() => {
     const load = async () => {
@@ -102,17 +119,16 @@ export function SecurityDashboardPage() {
               incomplete: required.length - completed.length,
               status: checklist.status,
             });
-            const pendingItems = checklist.items
-              .filter((i: any) => i.status === "PENDING" && i.required)
-              .slice(0, 3);
-            setChecklistItems(pendingItems);
           } else {
             setChecklistSummary(null);
-            setChecklistItems([]);
           }
-        } catch (err) {
-          setChecklistSummary(null);
-          setChecklistItems([]);
+        } catch (err: any) {
+          if (err?.response?.status === 404) {
+            setChecklistSummary(null);
+          } else {
+            console.error("Failed to load checklist:", err);
+            setChecklistSummary(null);
+          }
         }
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
@@ -131,9 +147,12 @@ export function SecurityDashboardPage() {
       <div className="mx-auto max-w-4xl space-y-5">
         {/* Header */}
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            {getGreeting()}, Security
-          </h1>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-xl font-semibold tracking-tight">
+              {getGreeting()}, Security
+            </h1>
+            <UserRoleBadge />
+          </div>
           <p className="text-xs text-slate-400">
             {currentSite?.name ?? "–"} · {new Date().toLocaleDateString("id-ID")}
           </p>
@@ -143,26 +162,38 @@ export function SecurityDashboardPage() {
         <DashboardCard title="Status Shift">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex-1">
-              <div className="text-xs text-slate-400">Check In</div>
-              <div className="mt-1 text-sm font-medium text-slate-50">
-                {attendance?.check_in_time
-                  ? new Date(attendance.check_in_time).toLocaleTimeString("id-ID", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "Belum check in"}
-              </div>
-              {attendance?.check_out_time && (
-                <>
-                  <div className="mt-2 text-xs text-slate-400">Check Out</div>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div>
+                  <div className="text-xs text-slate-400">Check In</div>
                   <div className="mt-1 text-sm font-medium text-slate-50">
-                    {new Date(attendance.check_out_time).toLocaleTimeString("id-ID", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {attendance?.check_in_time
+                      ? new Date(attendance.check_in_time).toLocaleTimeString("id-ID", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "Belum check in"}
                   </div>
-                </>
-              )}
+                </div>
+                {attendance?.check_out_time && (
+                  <div>
+                    <div className="text-xs text-slate-400">Check Out</div>
+                    <div className="mt-1 text-sm font-medium text-slate-50">
+                      {new Date(attendance.check_out_time).toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  </div>
+                )}
+                {shiftDuration() && (
+                  <div>
+                    <div className="text-xs text-slate-400">Durasi Shift</div>
+                    <div className="mt-1 text-sm font-medium text-slate-50">
+                      {shiftDuration()}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="mt-3">
                 <span
                   className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold uppercase ${
@@ -193,12 +224,14 @@ export function SecurityDashboardPage() {
           </div>
         </DashboardCard>
 
-        {/* Today Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <PengumumanCard />
+
+        {/* Statistics Cards - Focus on Numbers */}
+        <div className="grid gap-4 md:grid-cols-3">
           <KpiCard
             title={t("security.reportsToday")}
             value={reportsSummary?.total ?? 0}
-            subtitle={`${t("security.incidents")} ${reportsSummary?.incidents ?? 0} · ${t("security.daily")} ${reportsSummary?.daily ?? 0}`}
+            subtitle={`Insiden: ${reportsSummary?.incidents ?? 0} · Harian: ${reportsSummary?.daily ?? 0}`}
           />
           <div
             onClick={() => navigate("/security/checklist")}
@@ -206,37 +239,20 @@ export function SecurityDashboardPage() {
           >
             <KpiCard
               title={t("security.checklist")}
-              value={checklistSummary ? `${checklistSummary.completed}/${checklistSummary.total}` : "–"}
+              value={`${checklistPercent}%`}
               subtitle={
                 checklistSummary
-                  ? checklistSummary.status === "COMPLETED"
-                    ? "✓ " + t("security.completed")
-                    : checklistSummary.status === "INCOMPLETE"
-                    ? "⚠ " + t("security.incomplete")
-                    : "○ " + t("security.checklistProgress")
+                  ? `${checklistSummary.completed}/${checklistSummary.total} selesai`
                   : "No checklist"
               }
               variant={checklistSummary?.status === "COMPLETED" ? "success" : checklistSummary?.status === "INCOMPLETE" ? "danger" : "default"}
             />
-            {checklistItems.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-slate-800">
-                {checklistItems.map((item, idx) => (
-                  <div
-                    key={item.id || idx}
-                    className="text-xs text-slate-400 mb-1 flex items-start gap-2"
-                  >
-                    <span className="text-amber-400">○</span>
-                    <span className="flex-1 truncate">{item.title}</span>
-                  </div>
-                ))}
-                {checklistSummary && checklistSummary.incomplete > checklistItems.length && (
-                  <div className="text-[10px] text-slate-400 italic mt-1">
-                    +{checklistSummary.incomplete - checklistItems.length} lagi...
-                  </div>
-                )}
-              </div>
-            )}
           </div>
+          <KpiCard
+            title="Durasi Shift"
+            value={shiftDuration() || "–"}
+            subtitle={hasCheckIn ? (hasCheckOut ? "Shift selesai" : "Masih berlangsung") : "Belum check in"}
+          />
         </div>
 
         {/* Quick Actions - Icon Buttons */}
@@ -263,22 +279,28 @@ export function SecurityDashboardPage() {
               onClick={() => navigate("/security/checklist")}
               icon={AppIcons.checklist()}
             />
-            <IconActionButton
-              label="Panic"
-              onClick={() => navigate("/security/panic")}
-              icon={AppIcons.panic()}
-              variant="danger"
-            />
-            <IconActionButton
-              label="Passdown"
-              onClick={() => navigate("/security/passdown")}
-              icon={AppIcons.passdown()}
-            />
-            <IconActionButton
-              label="DAR"
-              onClick={() => navigate("/security/dar")}
-              icon={AppIcons.dar()}
-            />
+            <RoleBasedAccess allowedDivisions={["security"]}>
+              <IconActionButton
+                label="Panic"
+                onClick={() => navigate("/security/panic")}
+                icon={AppIcons.panic()}
+                variant="danger"
+              />
+            </RoleBasedAccess>
+            <RoleBasedAccess allowedDivisions={["security"]}>
+              <IconActionButton
+                label="Passdown"
+                onClick={() => navigate("/security/passdown")}
+                icon={AppIcons.passdown()}
+              />
+            </RoleBasedAccess>
+            {/* <RoleBasedAccess allowedDivisions={["security"]}>
+              <IconActionButton
+                label="DAR"
+                onClick={() => navigate("/security/dar")}
+                icon={AppIcons.dar()}
+              />
+            </RoleBasedAccess> */}
             <IconActionButton
               label="Shift"
               onClick={() => navigate("/security/shifts")}
@@ -286,9 +308,6 @@ export function SecurityDashboardPage() {
             />
           </div>
         </DashboardCard>
-
-        {/* Pengumuman */}
-        <PengumumanCard />
 
         {loading && (
           <div className="text-center text-xs text-slate-400">

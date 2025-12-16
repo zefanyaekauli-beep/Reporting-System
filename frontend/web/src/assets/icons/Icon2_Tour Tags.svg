@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 841.89 595.28">
+  <!-- Generator: Adobe Illustrator 29.7.1, SVG Export Plug-In . SVG Version: 2.1.1 Build 8)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #0a2c4b;
+      }
+
+      .st1 {
+        fill: #ee2e24;
+      }
+
+      .st2, .st3 {
+        fill: #fcd01a;
+      }
+
+      .st3 {
+        stroke: #fcd01a;
+        stroke-miterlimit: 10;
+        stroke-width: 2px;
+      }
+    </style>
+  </defs>
+  <g>
+    <circle class="st0" cx="420.94" cy="297.64" r="219.12"/>
+    <circle class="st0" cx="420.94" cy="297.64" r="173.79"/>
+    <path class="st3" d="M420.94,123.84c-95.98,0-173.79,77.81-173.79,173.79s77.81,173.79,173.79,173.79,173.79-77.81,173.79-173.79-77.81-173.79-173.79-173.79ZM420.94,468.7c-94.47,0-171.06-76.59-171.06-171.06s76.59-171.06,171.06-171.06,171.06,76.59,171.06,171.06-76.59,171.06-171.06,171.06Z"/>
+  </g>
+  <g>
+    <path class="st1" d="M327.17,232.7c-1.98,0-3.59-1.61-3.59-3.59v-14.45c0-7.94,6.46-14.39,14.39-14.39h14.45c1.98,0,3.59,1.61,3.59,3.59s-1.61,3.59-3.59,3.59h-14.45c-3.98,0-7.21,3.23-7.21,7.21v14.45c0,1.98-1.61,3.59-3.59,3.59Z"/>
+    <path class="st1" d="M352.42,395.01h-14.45c-7.94,0-14.39-6.46-14.39-14.39v-14.45c0-1.98,1.61-3.59,3.59-3.59s3.59,1.61,3.59,3.59v14.45c0,3.98,3.23,7.21,7.21,7.21h14.45c1.98,0,3.59,1.61,3.59,3.59s-1.61,3.59-3.59,3.59Z"/>
+    <path class="st1" d="M503.92,395.01h-14.45c-1.98,0-3.59-1.61-3.59-3.59s1.61-3.59,3.59-3.59h14.45c3.98,0,7.21-3.23,7.21-7.21v-14.45c0-1.98,1.61-3.59,3.59-3.59s3.59,1.61,3.59,3.59v14.45c0,7.94-6.46,14.39-14.39,14.39Z"/>
+    <path class="st1" d="M514.72,232.7c-1.98,0-3.59-1.61-3.59-3.59v-14.45c0-3.98-3.23-7.21-7.21-7.21h-14.45c-1.98,0-3.59-1.61-3.59-3.59s1.61-3.59,3.59-3.59h14.45c7.94,0,14.39,6.46,14.39,14.39v14.45c0,1.98-1.61,3.59-3.59,3.59Z"/>
+  </g>
+  <g>
+    <rect class="st2" x="346.09" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="352.08" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="222.79" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="376.03" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="222.79" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="222.79" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="222.79" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="222.79" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="222.79" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="477.83" y="222.79" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="483.82" y="222.79" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="222.79" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="228.78" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="228.78" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="228.78" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="228.78" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="228.78" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="228.78" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="423.94" y="228.78" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="228.78" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="228.78" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="228.78" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="234.77" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="423.94" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="234.77" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="234.77" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="477.83" y="234.77" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="234.77" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="240.75" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="240.75" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="240.75" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="240.75" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="240.75" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="240.75" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="423.94" y="240.75" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="240.75" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="240.75" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="240.75" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="240.75" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="477.83" y="240.75" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="240.75" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="246.74" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="246.74" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="246.74" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="246.74" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="246.74" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="246.74" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="246.74" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="246.74" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="246.74" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="246.74" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="246.74" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="246.74" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="246.74" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="477.83" y="246.74" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="246.74" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="252.73" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="252.73" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="252.73" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="252.73" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="423.94" y="252.73" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="252.73" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="252.73" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="252.73" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="352.08" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="258.72" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="376.03" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="258.72" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="258.72" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="258.72" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="258.72" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="258.72" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="477.83" y="258.72" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="483.82" y="258.72" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="258.72" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="264.71" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="264.71" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="264.71" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="264.71" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="270.7" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="352.08" y="270.7" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="270.7" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="376.03" y="270.7" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="270.7" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="270.7" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="270.7" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="270.7" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="270.7" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="270.7" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="270.7" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="270.7" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="270.7" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="483.82" y="270.7" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="270.7" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="276.68" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="276.68" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="276.68" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="276.68" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="276.68" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="276.68" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="276.68" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="276.68" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="276.68" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="276.68" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="276.68" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="483.82" y="276.68" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="276.68" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="352.08" y="282.67" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="282.67" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="282.67" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="282.67" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="388.01" y="282.67" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="282.67" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="282.67" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="282.67" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="282.67" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="282.67" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="282.67" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="477.83" y="282.67" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="282.67" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="288.66" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="288.66" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="376.03" y="288.66" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="388.01" y="288.66" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="288.66" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="288.66" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="288.66" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="288.66" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="288.66" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="288.66" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="288.66" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="288.66" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="294.65" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="376.03" y="294.65" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="294.65" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="294.65" width="6" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="294.65" width="5.98" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="294.65" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="294.65" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="294.65" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="294.65" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="294.65" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="294.65" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="294.65" width="5.98" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="352.08" y="300.63" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="300.63" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="300.63" width="5.98" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="388.01" y="300.63" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="300.63" width="6" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="300.63" width="5.98" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="300.63" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="423.94" y="300.63" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="300.63" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="300.63" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="300.63" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="300.63" width="5.98" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="483.82" y="300.63" width="6" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="300.63" width="5.98" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="306.62" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="352.08" y="306.62" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="306.62" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="376.03" y="306.62" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="306.62" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="306.62" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="306.62" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="306.62" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="306.62" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="306.62" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="477.83" y="306.62" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="306.62" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="312.61" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="312.61" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="376.03" y="312.61" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="312.61" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="312.61" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="312.61" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="312.61" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="312.61" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="312.61" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="312.61" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="352.08" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="388.01" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="318.6" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="318.6" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="318.6" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="318.6" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="483.82" y="318.6" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="324.58" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="324.58" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="324.58" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="423.94" y="324.58" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="324.58" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="324.58" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="477.83" y="324.58" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="324.58" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="352.08" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="330.57" width="5.98" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="376.03" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="423.94" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="330.57" width="5.99" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="330.57" width="6" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="330.57" width="5.98" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="330.57" width="5.98" height="5.98" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="336.56" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="336.56" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="336.56" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="336.56" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="336.56" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="336.56" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="336.56" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="336.56" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="483.82" y="336.56" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="336.56" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="342.55" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="405.98" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="342.55" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="453.88" y="342.55" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="342.55" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="342.55" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="342.55" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="342.55" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="348.54" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="348.54" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="348.54" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="348.54" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="348.54" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="348.54" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="348.54" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="423.94" y="348.54" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="348.54" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="348.54" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="348.54" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="348.54" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="348.54" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="477.83" y="348.54" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="483.82" y="348.54" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="354.52" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="354.52" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="354.52" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="354.52" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="354.52" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="354.52" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="354.52" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="354.52" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="354.52" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="354.52" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="354.52" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="354.52" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="483.82" y="354.52" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="354.52" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="360.51" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="360.51" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="360.51" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="411.97" y="360.51" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="360.51" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="360.51" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="435.91" y="360.51" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="360.51" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="360.51" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="459.87" y="360.51" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="465.85" y="360.51" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="346.09" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="352.08" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="358.07" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="364.06" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="370.05" y="366.5" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="376.03" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="382.02" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="394" y="366.5" width="6" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="400" y="366.5" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="417.95" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="423.94" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="429.93" y="366.5" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="441.9" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="447.89" y="366.5" width="5.99" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="471.85" y="366.5" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+    <rect class="st2" x="489.81" y="366.5" width="5.98" height="5.99" shape-rendering="optimizeSpeed"/>
+  </g>
+</svg>

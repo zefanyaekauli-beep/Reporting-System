@@ -18,8 +18,16 @@ cd "$SCRIPT_DIR"
 echo -e "${GREEN}🚀 Starting Verolux Management System...${NC}"
 echo ""
 
-# Get IP address
-IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | head -1 | awk '{print $2}')
+# Get IP address (try ip command first, fallback to ifconfig)
+IP=""
+if command -v ip &> /dev/null; then
+    # Modern Linux (Arch, Ubuntu, etc.) - use ip command
+    IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1)
+elif command -v ifconfig &> /dev/null; then
+    # Legacy systems - use ifconfig
+    IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | head -1 | awk '{print $2}')
+fi
+
 if [ -z "$IP" ]; then
     IP="192.168.0.160"  # Default fallback
 fi
@@ -77,17 +85,70 @@ fi
 
 # Start backend with activated venv
 echo -e "${YELLOW}🚀 Starting backend server...${NC}"
+
+# Create log file and ensure it's writable
+touch /tmp/verolux_backend.log
+chmod 666 /tmp/verolux_backend.log 2>/dev/null || true
+
+# Verify Python and uvicorn are available
+if ! venv/bin/python -c "import uvicorn" 2>/dev/null; then
+    echo -e "${RED}❌ uvicorn not found in virtual environment${NC}"
+    echo "   Installing uvicorn..."
+    venv/bin/pip install uvicorn
+fi
+
+# Try to start backend and capture immediate errors
+echo "   Python: $(venv/bin/python --version)"
+echo "   Working directory: $(pwd)"
+echo "   Starting uvicorn..."
+
+# Start backend with better error handling
 venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > /tmp/verolux_backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
-sleep 3
 
-# Check if backend started
-if lsof -ti:8000 >/dev/null 2>&1; then
+# Wait for backend to be ready (polling with multiple checks)
+echo -e "${YELLOW}⏳ Waiting for backend to be ready...${NC}"
+BACKEND_READY=false
+for i in {1..15}; do
+    sleep 1
+    # Check multiple ways: lsof, netstat, curl
+    if lsof -ti:8000 >/dev/null 2>&1 || \
+       (command -v netstat >/dev/null 2>&1 && netstat -tuln 2>/dev/null | grep -q ":8000") || \
+       curl -s --max-time 1 http://localhost:8000/health >/dev/null 2>&1; then
+        BACKEND_READY=true
+        break
+    fi
+    # Check if process died
+    if ! kill -0 $BACKEND_PID 2>/dev/null; then
+        echo -e "${RED}❌ Backend process died during startup${NC}"
+        echo "   Last 30 lines of log:"
+        tail -n 30 /tmp/verolux_backend.log 2>/dev/null || echo "   (log file empty or not accessible)"
+        exit 1
+    fi
+done
+
+# Final check
+if [ "$BACKEND_READY" = true ]; then
     echo -e "${GREEN}✅ Backend started (PID: $BACKEND_PID)${NC}"
+elif kill -0 $BACKEND_PID 2>/dev/null; then
+    # Process is running but port check failed - might be a false negative
+    # Try one more time with curl
+    if curl -s --max-time 2 http://localhost:8000/health >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Backend started (PID: $BACKEND_PID) - port check passed${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Backend process is running but port check inconclusive${NC}"
+        echo "   Process PID: $BACKEND_PID"
+        echo "   Last 10 lines of log:"
+        tail -n 10 /tmp/verolux_backend.log 2>/dev/null || echo "   (log file empty)"
+        echo "   Continuing anyway - backend might be starting up..."
+        # Don't exit - let it continue and see if it works
+    fi
 else
     echo -e "${RED}❌ Backend failed to start${NC}"
-    echo "Check logs: tail -f /tmp/verolux_backend.log"
+    echo "   Process PID: $BACKEND_PID"
+    echo "   Last 30 lines of log:"
+    tail -n 30 /tmp/verolux_backend.log 2>/dev/null || echo "   (log file empty or not accessible)"
     exit 1
 fi
 
@@ -191,6 +252,9 @@ if [ "$USE_NGROK" = true ]; then
     if command -v ngrok &> /dev/null; then
         NGROK_CMD="ngrok"
     elif [ -f "$SCRIPT_DIR/ngrok" ]; then
+        # Make sure it's executable
+        chmod +x "$SCRIPT_DIR/ngrok" 2>/dev/null || true
+        # Store path with proper quoting for paths with spaces
         NGROK_CMD="$SCRIPT_DIR/ngrok"
     fi
     
@@ -217,18 +281,61 @@ if [ "$USE_NGROK" = true ]; then
         fi
         
         # Use --log=stdout to see errors, and redirect to log file
-        # If HTTPS, ngrok needs to connect to https://localhost:5173
+        # Note: ngrok v3 syntax for HTTPS is different - use localhost:5173 and let ngrok handle HTTPS
+        # For self-signed certs, ngrok might have issues, so we'll try HTTP first if HTTPS fails
+        # Properly quote path to handle spaces (e.g., "DELL GAMING")
         if [ "$FRONTEND_PROTO" = "https" ]; then
-            $NGROK_CMD http https://localhost:5173 --log=stdout > /tmp/ngrok_frontend.log 2>&1 &
+            # Try HTTPS first, but ngrok v3 might need different approach
+            # Some versions need: ngrok http https://localhost:5173 --host-header=rewrite
+            # Or simpler: just use port and let frontend handle HTTPS
+            echo -e "${YELLOW}   Attempting HTTPS tunnel...${NC}"
+            "$NGROK_CMD" http https://localhost:5173 --log=stdout > /tmp/ngrok_frontend.log 2>&1 &
         else
-            $NGROK_CMD http 5173 --log=stdout > /tmp/ngrok_frontend.log 2>&1 &
+            "$NGROK_CMD" http 5173 --log=stdout > /tmp/ngrok_frontend.log 2>&1 &
         fi
         NGROK_PID=$!
-        sleep 8  # Give ngrok more time to start
         
-        # Try to get ngrok URL from API
-        for i in {1..10}; do
+        # Wait and verify ngrok started
+        echo -e "${YELLOW}   Waiting for ngrok to initialize...${NC}"
+        sleep 3
+        
+        # Check if ngrok process is still running
+        if ! kill -0 $NGROK_PID 2>/dev/null; then
+            echo -e "${RED}   ❌ ngrok process died immediately${NC}"
+            echo "   Last 20 lines of log:"
+            tail -n 20 /tmp/ngrok_frontend.log 2>/dev/null || echo "   (log file empty)"
+            echo ""
+            echo -e "${YELLOW}   Trying alternative: HTTP tunnel (frontend HTTPS might be causing issues)${NC}"
+            # Try HTTP instead - ngrok will provide HTTPS on public URL
+            "$NGROK_CMD" http 5173 --log=stdout > /tmp/ngrok_frontend.log 2>&1 &
+            NGROK_PID=$!
+            sleep 5
+            if ! kill -0 $NGROK_PID 2>/dev/null; then
+                echo -e "${RED}   ❌ ngrok still failed with HTTP tunnel${NC}"
+                echo "   Error log:"
+                tail -n 30 /tmp/ngrok_frontend.log 2>/dev/null || echo "   (log file empty)"
+                echo ""
+                echo -e "${YELLOW}   ⚠️  ngrok failed to start. You can start it manually:${NC}"
+                echo "      ./ngrok http 5173"
+                USE_NGROK=false
+            else
+                echo -e "${GREEN}   ✅ ngrok started with HTTP tunnel (PID: $NGROK_PID)${NC}"
+            fi
+        else
+            echo -e "${GREEN}   ✅ ngrok process is running (PID: $NGROK_PID)${NC}"
+        fi
+        
+        sleep 3  # Give ngrok more time to start web interface
+        
+        # Try to get ngrok URL from API (with retries)
+        NGROK_URL=""
+        for i in {1..15}; do
+            # Try multiple methods to get URL
             NGROK_URL=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null | grep -o '"public_url":"https://[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+            if [ -z "$NGROK_URL" ]; then
+                # Alternative: try parsing JSON with python if available
+                NGROK_URL=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['tunnels'][0]['public_url'] if data.get('tunnels') else '')" 2>/dev/null || echo "")
+            fi
             if [ -n "$NGROK_URL" ]; then
                 break
             fi
@@ -237,10 +344,12 @@ if [ "$USE_NGROK" = true ]; then
         
         if [ -n "$NGROK_URL" ]; then
             echo -e "${GREEN}✅ ngrok tunnel started!${NC}"
+            echo -e "${GREEN}   Public URL: $NGROK_URL${NC}"
             echo $NGROK_PID > /tmp/ngrok_frontend.pid
         else
             echo -e "${YELLOW}⚠️  ngrok started but URL not available yet${NC}"
             echo "   Check ngrok web interface: http://localhost:4040"
+            echo "   Or check log: tail -f /tmp/ngrok_frontend.log | grep 'started tunnel'"
         fi
         echo ""
     fi
@@ -301,4 +410,3 @@ fi
 echo ""
 echo "💡 Tip: Run with --ngrok flag to start ngrok tunnel: ./start.sh --ngrok"
 echo ""
-

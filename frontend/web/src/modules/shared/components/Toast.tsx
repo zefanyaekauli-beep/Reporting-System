@@ -77,7 +77,7 @@ export function Toast({
         `}
       </style>
       <span style={{ fontSize: 18 }}>{icon}</span>
-      <span style={{ flex: 1 }}>{message}</span>
+      <span style={{ flex: 1 }}>{typeof message === "string" ? message : String(message || "")}</span>
       {onClose && (
         <button
           onClick={onClose}
@@ -115,10 +115,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   } | null>(null);
 
   const showToast = (
-    message: string,
+    message: string | any,
     type: "success" | "error" | "warning" | "info"
   ) => {
-    setToast({ message, type });
+    // Ensure message is always a string
+    let messageStr = "";
+    if (typeof message === "string") {
+      messageStr = message;
+    } else if (Array.isArray(message)) {
+      messageStr = message.map((e: any) => {
+        if (typeof e === "string") return e;
+        if (e?.msg) return e.msg;
+        if (e?.message) return e.message;
+        return JSON.stringify(e);
+      }).join(", ");
+    } else if (message && typeof message === "object") {
+      messageStr = message.message || message.msg || message.detail || JSON.stringify(message);
+    } else {
+      messageStr = String(message || "An error occurred");
+    }
+    setToast({ message: messageStr, type });
   };
 
   return (
