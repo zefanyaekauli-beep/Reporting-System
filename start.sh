@@ -48,24 +48,24 @@ echo -e "${GREEN}✅ Processes stopped${NC}"
 echo ""
 
 # Start Backend
-echo -e "${YELLOW}🔧 Starting Backend...${NC}"
+echo -e "${YELLOW}ðŸ”§ Starting Backend...${NC}"
 cd backend
 
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
-    echo -e "${YELLOW}📦 Virtual environment not found. Creating...${NC}"
+    echo -e "${YELLOW}ðŸ“¦ Virtual environment not found. Creating...${NC}"
     python3 -m venv venv
     if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Failed to create virtual environment${NC}"
+        echo -e "${RED}âŒ Failed to create virtual environment${NC}"
         echo "Make sure Python 3 is installed: python3 --version"
         cd ..
         exit 1
     fi
-    echo -e "${YELLOW}📥 Installing dependencies...${NC}"
+    echo -e "${YELLOW}ðŸ“¥ Installing dependencies...${NC}"
     source venv/bin/activate
     pip install -r requirements.txt
     if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Failed to install dependencies${NC}"
+        echo -e "${RED}âŒ Failed to install dependencies${NC}"
         cd ..
         exit 1
     fi
@@ -77,7 +77,7 @@ fi
 
 # Check if venv Python exists
 if [ ! -f "venv/bin/python" ]; then
-    echo -e "${RED}❌ Virtual environment Python not found${NC}"
+    echo -e "${RED}âŒ Virtual environment Python not found${NC}"
     echo "Recreate venv: rm -rf venv && python3 -m venv venv"
     cd ..
     exit 1
@@ -92,7 +92,7 @@ chmod 666 /tmp/verolux_backend.log 2>/dev/null || true
 
 # Verify Python and uvicorn are available
 if ! venv/bin/python -c "import uvicorn" 2>/dev/null; then
-    echo -e "${RED}❌ uvicorn not found in virtual environment${NC}"
+    echo -e "${RED}âŒ uvicorn not found in virtual environment${NC}"
     echo "   Installing uvicorn..."
     venv/bin/pip install uvicorn
 fi
@@ -108,7 +108,7 @@ BACKEND_PID=$!
 cd ..
 
 # Wait for backend to be ready (polling with multiple checks)
-echo -e "${YELLOW}⏳ Waiting for backend to be ready...${NC}"
+echo -e "${YELLOW}â³ Waiting for backend to be ready...${NC}"
 BACKEND_READY=false
 for i in {1..15}; do
     sleep 1
@@ -121,7 +121,7 @@ for i in {1..15}; do
     fi
     # Check if process died
     if ! kill -0 $BACKEND_PID 2>/dev/null; then
-        echo -e "${RED}❌ Backend process died during startup${NC}"
+        echo -e "${RED}âŒ Backend process died during startup${NC}"
         echo "   Last 30 lines of log:"
         tail -n 30 /tmp/verolux_backend.log 2>/dev/null || echo "   (log file empty or not accessible)"
         exit 1
@@ -137,7 +137,7 @@ elif kill -0 $BACKEND_PID 2>/dev/null; then
     if curl -s --max-time 2 http://localhost:8000/health >/dev/null 2>&1; then
         echo -e "${GREEN}✅ Backend started (PID: $BACKEND_PID) - port check passed${NC}"
     else
-        echo -e "${YELLOW}⚠️  Backend process is running but port check inconclusive${NC}"
+        echo -e "${YELLOW}âš ï¸  Backend process is running but port check inconclusive${NC}"
         echo "   Process PID: $BACKEND_PID"
         echo "   Last 10 lines of log:"
         tail -n 10 /tmp/verolux_backend.log 2>/dev/null || echo "   (log file empty)"
@@ -145,7 +145,7 @@ elif kill -0 $BACKEND_PID 2>/dev/null; then
         # Don't exit - let it continue and see if it works
     fi
 else
-    echo -e "${RED}❌ Backend failed to start${NC}"
+    echo -e "${RED}âŒ Backend failed to start${NC}"
     echo "   Process PID: $BACKEND_PID"
     echo "   Last 30 lines of log:"
     tail -n 30 /tmp/verolux_backend.log 2>/dev/null || echo "   (log file empty or not accessible)"
@@ -163,11 +163,11 @@ echo -e "${GREEN}✅ Cache cleared${NC}"
 echo ""
 
 # Verify fixes are in place
-echo -e "${YELLOW}🔍 Verifying configuration...${NC}"
+echo -e "${YELLOW}ðŸ” Verifying configuration...${NC}"
 
 # Check client.ts
 if ! grep -q 'return "/api"' src/api/client.ts 2>/dev/null; then
-    echo -e "${RED}⚠️  WARNING: client.ts may not have the fix applied!${NC}"
+    echo -e "${RED}âš ï¸  WARNING: client.ts may not have the fix applied!${NC}"
     echo "   Expected: return \"/api\";"
 else
     echo -e "${GREEN}   [OK] client.ts uses relative /api path${NC}"
@@ -175,7 +175,7 @@ fi
 
 # Check vite.config.ts proxy
 if ! grep -q "proxy:" vite.config.ts 2>/dev/null; then
-    echo -e "${RED}⚠️  WARNING: vite.config.ts may not have proxy configured!${NC}"
+    echo -e "${RED}âš ï¸  WARNING: vite.config.ts may not have proxy configured!${NC}"
 else
     echo -e "${GREEN}   [OK] vite.config.ts has proxy configured${NC}"
 fi
@@ -183,7 +183,7 @@ fi
 # Check .env file for hardcoded IP
 if [ -f .env ]; then
     if grep -q "VITE_API_BASE_URL.*http://" .env 2>/dev/null || grep -q "VITE_API_BASE_URL.*192\.168" .env 2>/dev/null; then
-        echo -e "${RED}⚠️  WARNING: .env contains hardcoded IP address!${NC}"
+        echo -e "${RED}âš ï¸  WARNING: .env contains hardcoded IP address!${NC}"
         echo "   This will cause CORS errors. Remove VITE_API_BASE_URL from .env"
         echo "   or set it to: VITE_API_BASE_URL=/api"
     else
@@ -204,7 +204,7 @@ sleep 5
 if lsof -ti:5173 >/dev/null 2>&1; then
     echo -e "${GREEN}✅ Frontend started (PID: $FRONTEND_PID)${NC}"
 else
-    echo -e "${RED}❌ Frontend failed to start${NC}"
+    echo -e "${RED}âŒ Frontend failed to start${NC}"
     echo "Check logs: tail -f /tmp/verolux_frontend.log"
     exit 1
 fi
@@ -214,28 +214,28 @@ sleep 2
 
 # Verify services
 echo ""
-echo -e "${YELLOW}🔍 Verifying services...${NC}"
-BACKEND_OK=$(curl -s --max-time 2 http://localhost:8000/health 2>/dev/null | grep -q "ok" && echo "✅" || echo "❌")
+echo -e "${YELLOW}ðŸ” Verifying services...${NC}"
+BACKEND_OK=$(curl -s --max-time 2 http://localhost:8000/health 2>/dev/null | grep -q "ok" && echo "âœ…" || echo "âŒ")
 
 # Check frontend (HTTP or HTTPS)
 FRONTEND_PROTO_CHECK="http"
 if [ -f "frontend/web/certs/cert.pem" ] && [ -f "frontend/web/certs/key.pem" ]; then
     FRONTEND_PROTO_CHECK="https"
 fi
-FRONTEND_OK=$(curl -s -k --max-time 2 ${FRONTEND_PROTO_CHECK}://localhost:5173 2>/dev/null | grep -q "html\|<!DOCTYPE" && echo "✅" || echo "❌")
+FRONTEND_OK=$(curl -s -k --max-time 2 ${FRONTEND_PROTO_CHECK}://localhost:5173 2>/dev/null | grep -q "html\|<!DOCTYPE" && echo "âœ…" || echo "âŒ")
 
 echo "   Backend:  $BACKEND_OK"
 echo "   Frontend: $FRONTEND_OK"
 echo ""
 
 # Wait for frontend to be fully ready before starting ngrok
-if [ "$FRONTEND_OK" = "❌" ]; then
-    echo -e "${YELLOW}⏳ Waiting for frontend to be ready...${NC}"
+if [ "$FRONTEND_OK" = "âŒ" ]; then
+    echo -e "${YELLOW}â³ Waiting for frontend to be ready...${NC}"
     for i in {1..10}; do
         sleep 1
-        FRONTEND_OK=$(curl -s -k --max-time 2 ${FRONTEND_PROTO_CHECK}://localhost:5173 2>/dev/null | grep -q "html\|<!DOCTYPE" && echo "✅" || echo "❌")
-        if [ "$FRONTEND_OK" = "✅" ]; then
-            echo -e "${GREEN}✅ Frontend is ready!${NC}"
+        FRONTEND_OK=$(curl -s -k --max-time 2 ${FRONTEND_PROTO_CHECK}://localhost:5173 2>/dev/null | grep -q "html\|<!DOCTYPE" && echo "âœ…" || echo "âŒ")
+        if [ "$FRONTEND_OK" = "âœ…" ]; then
+            echo -e "${GREEN}âœ… Frontend is ready!${NC}"
             break
         fi
     done
@@ -245,7 +245,7 @@ fi
 NGROK_URL=""
 if [ "$USE_NGROK" = true ]; then
     echo ""
-    echo -e "${YELLOW}🌐 Starting ngrok tunnel...${NC}"
+    echo -e "${YELLOW}ðŸŒ Starting ngrok tunnel...${NC}"
     
     # Check if ngrok is installed (either in PATH or in project directory)
     NGROK_CMD=""
@@ -259,7 +259,7 @@ if [ "$USE_NGROK" = true ]; then
     fi
     
     if [ -z "$NGROK_CMD" ]; then
-        echo -e "${RED}❌ ngrok is not installed${NC}"
+        echo -e "${RED}âŒ ngrok is not installed${NC}"
         echo "   Install ngrok: https://ngrok.com/download"
         echo "   Or run: brew install ngrok/ngrok/ngrok (if Homebrew is installed)"
         echo ""
@@ -301,7 +301,7 @@ if [ "$USE_NGROK" = true ]; then
         
         # Check if ngrok process is still running
         if ! kill -0 $NGROK_PID 2>/dev/null; then
-            echo -e "${RED}   ❌ ngrok process died immediately${NC}"
+            echo -e "${RED}   âŒ ngrok process died immediately${NC}"
             echo "   Last 20 lines of log:"
             tail -n 20 /tmp/ngrok_frontend.log 2>/dev/null || echo "   (log file empty)"
             echo ""
@@ -311,11 +311,11 @@ if [ "$USE_NGROK" = true ]; then
             NGROK_PID=$!
             sleep 5
             if ! kill -0 $NGROK_PID 2>/dev/null; then
-                echo -e "${RED}   ❌ ngrok still failed with HTTP tunnel${NC}"
+                echo -e "${RED}   âŒ ngrok still failed with HTTP tunnel${NC}"
                 echo "   Error log:"
                 tail -n 30 /tmp/ngrok_frontend.log 2>/dev/null || echo "   (log file empty)"
                 echo ""
-                echo -e "${YELLOW}   ⚠️  ngrok failed to start. You can start it manually:${NC}"
+                echo -e "${YELLOW}   âš ï¸  ngrok failed to start. You can start it manually:${NC}"
                 echo "      ./ngrok http 5173"
                 USE_NGROK=false
             else
@@ -347,7 +347,7 @@ if [ "$USE_NGROK" = true ]; then
             echo -e "${GREEN}   Public URL: $NGROK_URL${NC}"
             echo $NGROK_PID > /tmp/ngrok_frontend.pid
         else
-            echo -e "${YELLOW}⚠️  ngrok started but URL not available yet${NC}"
+            echo -e "${YELLOW}âš ï¸  ngrok started but URL not available yet${NC}"
             echo "   Check ngrok web interface: http://localhost:4040"
             echo "   Or check log: tail -f /tmp/ngrok_frontend.log | grep 'started tunnel'"
         fi
@@ -358,7 +358,7 @@ fi
 # Display access URLs
 echo -e "${GREEN}✅ System Started Successfully!${NC}"
 echo ""
-echo "🌐 Access URLs:"
+echo "ðŸŒ Access URLs:"
 echo "   Backend:  http://$IP:8000"
 echo "   Frontend: http://$IP:5173"
 if [ -n "$NGROK_URL" ]; then
@@ -371,17 +371,17 @@ if [ -f "frontend/web/certs/cert.pem" ] && [ -f "frontend/web/certs/key.pem" ]; 
     FRONTEND_PROTO="https"
 fi
 
-echo "💻 From Computer:"
+echo "ðŸ’» From Computer:"
 echo "   Backend:  http://localhost:8000"
 echo "   Frontend: $FRONTEND_PROTO://localhost:5173"
 if [ "$FRONTEND_PROTO" = "https" ]; then
-    echo "   ⚠️  Accept security warning (self-signed certificate)"
+    echo "   âš ï¸  Accept security warning (self-signed certificate)"
 fi
 echo ""
-echo "📱 From Mobile (same network):"
+echo "ðŸ“± From Mobile (same network):"
 echo "   1. Open: $FRONTEND_PROTO://$IP:5173"
 if [ "$FRONTEND_PROTO" = "https" ]; then
-    echo "   2. Accept security warning (Advanced → Proceed)"
+    echo "   2. Accept security warning (Advanced â†’ Proceed)"
     echo "   3. Login: username='supervisor', password=(empty)"
 else
     echo "   2. Login: username='supervisor', password=(empty)"
@@ -389,24 +389,24 @@ fi
 echo "   Or try: security, cleaning, parking"
 echo ""
 if [ -n "$NGROK_URL" ]; then
-    echo "🌐 From Anywhere (via ngrok):"
+    echo "ðŸŒ From Anywhere (via ngrok):"
     echo "   1. Open: $NGROK_URL"
     echo "   2. Login: username='supervisor', password=(empty)"
     echo ""
     echo "   ngrok Web Interface: http://localhost:4040"
     echo ""
 fi
-echo "📋 Logs:"
+echo "ðŸ“‹ Logs:"
 echo "   Backend:  tail -f /tmp/verolux_backend.log"
 echo "   Frontend: tail -f /tmp/verolux_frontend.log"
 if [ -n "$NGROK_URL" ]; then
     echo "   ngrok:    tail -f /tmp/ngrok_frontend.log"
 fi
 echo ""
-echo "🛑 To stop: ./stop.sh or kill processes on ports 8000 and 5173"
+echo "ðŸ›‘ To stop: ./stop.sh or kill processes on ports 8000 and 5173"
 if [ -n "$NGROK_URL" ]; then
     echo "   (ngrok will also be stopped)"
 fi
 echo ""
-echo "💡 Tip: Run with --ngrok flag to start ngrok tunnel: ./start.sh --ngrok"
+echo "ðŸ’¡ Tip: Run with --ngrok flag to start ngrok tunnel: ./start.sh --ngrok"
 echo ""

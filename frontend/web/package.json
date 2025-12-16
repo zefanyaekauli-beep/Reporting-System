@@ -8,7 +8,6 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-<<<<<<< Updated upstream
     "lint": "tsc --noEmit",
     "clean": "node -e \"const fs=require('fs');const path=require('path');function rm(p){try{fs.rmSync(p,{recursive:true,force:true});}catch(e){}}rm(path.join(process.cwd(),'node_modules','.vite'));rm(path.join(process.cwd(),'node_modules','.vite','deps'));rm(path.join(process.cwd(),'.vite'));console.log('✅ Vite cache cleared');\"",
     "clean:cache": "npm run clean",

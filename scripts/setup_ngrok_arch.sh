@@ -13,12 +13,12 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 
-echo -e "${GREEN}🌐 Setting up ngrok for Arch Linux${NC}"
+echo -e "${GREEN}ðŸŒ Setting up ngrok for Arch Linux${NC}"
 echo ""
 
 # Check if ngrok is already installed
 if command -v ngrok &> /dev/null; then
-    echo -e "${GREEN}✅ ngrok is already installed${NC}"
+    echo -e "${GREEN}âœ… ngrok is already installed${NC}"
     ngrok version
     echo ""
     read -p "Do you want to configure authtoken? (y/n) " -n 1 -r
@@ -27,25 +27,25 @@ if command -v ngrok &> /dev/null; then
         echo -e "${YELLOW}Enter your ngrok authtoken:${NC}"
         read -r AUTHTOKEN
         ngrok config add-authtoken "$AUTHTOKEN"
-        echo -e "${GREEN}✅ Authtoken configured!${NC}"
+        echo -e "${GREEN}âœ… Authtoken configured!${NC}"
     fi
     exit 0
 fi
 
 # Check if ngrok binary exists in project root
 if [ -f "$PROJECT_ROOT/ngrok" ]; then
-    echo -e "${YELLOW}📦 Found ngrok binary in project root${NC}"
+    echo -e "${YELLOW}ðŸ“¦ Found ngrok binary in project root${NC}"
     echo ""
     read -p "Do you want to use this binary? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         # Make it executable
         chmod +x "$PROJECT_ROOT/ngrok"
-        echo -e "${GREEN}✅ Made ngrok executable${NC}"
+        echo -e "${GREEN}âœ… Made ngrok executable${NC}"
         
         # Test if it works
         if "$PROJECT_ROOT/ngrok" version &>/dev/null; then
-            echo -e "${GREEN}✅ ngrok binary is working!${NC}"
+            echo -e "${GREEN}âœ… ngrok binary is working!${NC}"
             "$PROJECT_ROOT/ngrok" version
             echo ""
             read -p "Do you want to configure authtoken? (y/n) " -n 1 -r
@@ -54,14 +54,14 @@ if [ -f "$PROJECT_ROOT/ngrok" ]; then
                 echo -e "${YELLOW}Enter your ngrok authtoken:${NC}"
                 read -r AUTHTOKEN
                 "$PROJECT_ROOT/ngrok" config add-authtoken "$AUTHTOKEN"
-                echo -e "${GREEN}✅ Authtoken configured!${NC}"
+                echo -e "${GREEN}âœ… Authtoken configured!${NC}"
             fi
             echo ""
-            echo -e "${GREEN}✅ Setup complete!${NC}"
+            echo -e "${GREEN}âœ… Setup complete!${NC}"
             echo "   You can now use: ./start.sh --ngrok"
             exit 0
         else
-            echo -e "${RED}❌ ngrok binary is not working${NC}"
+            echo -e "${RED}âŒ ngrok binary is not working${NC}"
             echo "   It might be for a different architecture"
         fi
     fi
@@ -86,7 +86,7 @@ case $REPLY in
         elif command -v paru &> /dev/null; then
             paru -S ngrok-bin
         else
-            echo -e "${RED}❌ yay or paru not found${NC}"
+            echo -e "${RED}âŒ yay or paru not found${NC}"
             echo ""
             echo "Install yay first:"
             echo "  cd /tmp"
@@ -106,17 +106,17 @@ case $REPLY in
         tar -xzf ngrok-v3-stable-linux-amd64.tgz
         sudo mv ngrok /usr/local/bin/
         rm ngrok-v3-stable-linux-amd64.tgz
-        echo -e "${GREEN}✅ ngrok installed to /usr/local/bin${NC}"
+        echo -e "${GREEN}âœ… ngrok installed to /usr/local/bin${NC}"
         ;;
     3)
         echo -e "${YELLOW}Installing via npm...${NC}"
         if ! command -v npm &> /dev/null; then
-            echo -e "${RED}❌ npm not found${NC}"
+            echo -e "${RED}âŒ npm not found${NC}"
             echo "   Install Node.js first: sudo pacman -S nodejs npm"
             exit 1
         fi
         sudo npm install -g ngrok
-        echo -e "${GREEN}✅ ngrok installed via npm${NC}"
+        echo -e "${GREEN}âœ… ngrok installed via npm${NC}"
         ;;
     *)
         echo -e "${RED}Invalid option${NC}"
@@ -127,7 +127,7 @@ esac
 # Verify installation
 if command -v ngrok &> /dev/null; then
     echo ""
-    echo -e "${GREEN}✅ ngrok installed successfully!${NC}"
+    echo -e "${GREEN}âœ… ngrok installed successfully!${NC}"
     ngrok version
     echo ""
     read -p "Do you want to configure authtoken now? (y/n) " -n 1 -r
@@ -137,13 +137,13 @@ if command -v ngrok &> /dev/null; then
         echo "   Get it from: https://dashboard.ngrok.com/get-started/your-authtoken"
         read -r AUTHTOKEN
         ngrok config add-authtoken "$AUTHTOKEN"
-        echo -e "${GREEN}✅ Authtoken configured!${NC}"
+        echo -e "${GREEN}âœ… Authtoken configured!${NC}"
     fi
     echo ""
-    echo -e "${GREEN}✅ Setup complete!${NC}"
+    echo -e "${GREEN}âœ… Setup complete!${NC}"
     echo "   You can now use: ./start.sh --ngrok"
 else
-    echo -e "${RED}❌ Installation failed${NC}"
+    echo -e "${RED}âŒ Installation failed${NC}"
     exit 1
 fi
 

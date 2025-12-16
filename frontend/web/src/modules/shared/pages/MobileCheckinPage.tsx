@@ -20,7 +20,6 @@ interface MobileCheckinPageProps {
 export function MobileCheckinPage({ roleType = "SECURITY", siteName = "Entrance Gate" }: MobileCheckinPageProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  
   // Simple toast function
   const showToast = (message: string, type: "success" | "error" = "success") => {
     // Simple alert for now - can be replaced with proper toast component

@@ -10,12 +10,12 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}🌐 Setting up ngrok for Verolux Management System${NC}"
+echo -e "${GREEN}ðŸŒ Setting up ngrok for Verolux Management System${NC}"
 echo ""
 
 # Check if ngrok is installed
 if ! command -v ngrok &> /dev/null; then
-    echo -e "${YELLOW}⚠️  ngrok is not installed${NC}"
+    echo -e "${YELLOW}âš ï¸  ngrok is not installed${NC}"
     echo ""
     echo "Installation options:"
     
@@ -33,7 +33,7 @@ if ! command -v ngrok &> /dev/null; then
             elif command -v paru &> /dev/null; then
                 paru -S ngrok-bin
             else
-                echo -e "${YELLOW}⚠️  yay or paru not found${NC}"
+                echo -e "${YELLOW}âš ï¸  yay or paru not found${NC}"
                 echo "   Install yay: https://github.com/Jguer/yay"
                 echo "   Or download ngrok manually from: https://ngrok.com/download"
                 exit 1
@@ -64,12 +64,12 @@ if ! command -v ngrok &> /dev/null; then
     fi
 fi
 
-echo -e "${GREEN}✅ ngrok is installed${NC}"
+echo -e "${GREEN}âœ… ngrok is installed${NC}"
 echo ""
 
 # Check if ngrok is authenticated
 if ! ngrok config check &> /dev/null; then
-    echo -e "${YELLOW}⚠️  ngrok is not authenticated${NC}"
+    echo -e "${YELLOW}âš ï¸  ngrok is not authenticated${NC}"
     echo ""
     echo "To authenticate ngrok:"
     echo "1. Sign up at https://dashboard.ngrok.com/signup"
@@ -87,7 +87,7 @@ if ! ngrok config check &> /dev/null; then
 fi
 
 echo ""
-echo -e "${GREEN}✅ ngrok setup complete!${NC}"
+echo -e "${GREEN}âœ… ngrok setup complete!${NC}"
 echo ""
 echo "To start ngrok tunnels, run:"
 echo "  ./start_ngrok.sh"

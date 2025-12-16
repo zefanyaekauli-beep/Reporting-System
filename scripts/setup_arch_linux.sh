@@ -11,22 +11,22 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}🐧 Setting up Verolux Management System for Arch Linux${NC}"
+echo -e "${GREEN}ðŸ§ Setting up Verolux Management System for Arch Linux${NC}"
 echo ""
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
-    echo -e "${YELLOW}⚠️  Some packages require root access${NC}"
+    echo -e "${YELLOW}âš ï¸  Some packages require root access${NC}"
     echo "   Run with sudo for system-wide installation"
     echo ""
 fi
 
 # Check for required commands
-echo -e "${YELLOW}🔍 Checking dependencies...${NC}"
+echo -e "${YELLOW}ðŸ” Checking dependencies...${NC}"
 
 # Python 3
 if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}❌ Python 3 not found${NC}"
+    echo -e "${RED}âŒ Python 3 not found${NC}"
     echo "   Install: sudo pacman -S python"
     exit 1
 else
@@ -35,7 +35,7 @@ fi
 
 # Node.js
 if ! command -v node &> /dev/null; then
-    echo -e "${YELLOW}⚠️  Node.js not found${NC}"
+    echo -e "${YELLOW}âš ï¸  Node.js not found${NC}"
     echo "   Install: sudo pacman -S nodejs npm"
     read -p "   Install Node.js now? (y/n) " -n 1 -r
     echo
@@ -47,7 +47,7 @@ if ! command -v node &> /dev/null; then
         if sudo pacman -S --noconfirm nodejs npm; then
             echo -e "${GREEN}   [OK] Node.js installed successfully${NC}"
         else
-            echo -e "${RED}   ❌ Installation failed (mirror sync issue)${NC}"
+            echo -e "${RED}   âŒ Installation failed (mirror sync issue)${NC}"
             echo ""
             echo "   Try these solutions:"
             echo "   1. Update package database: sudo pacman -Sy"
@@ -71,7 +71,7 @@ fi
 
 # lsof (for port checking)
 if ! command -v lsof &> /dev/null; then
-    echo -e "${YELLOW}⚠️  lsof not found${NC}"
+    echo -e "${YELLOW}âš ï¸  lsof not found${NC}"
     echo "   Install: sudo pacman -S lsof"
     read -p "   Install lsof now? (y/n) " -n 1 -r
     echo
@@ -88,7 +88,7 @@ fi
 
 # ip command (usually pre-installed, but check)
 if ! command -v ip &> /dev/null; then
-    echo -e "${YELLOW}⚠️  ip command not found${NC}"
+    echo -e "${YELLOW}âš ï¸  ip command not found${NC}"
     echo "   Install: sudo pacman -S iproute2"
     read -p "   Install iproute2 now? (y/n) " -n 1 -r
     echo
@@ -105,7 +105,7 @@ fi
 
 # curl (usually pre-installed)
 if ! command -v curl &> /dev/null; then
-    echo -e "${YELLOW}⚠️  curl not found${NC}"
+    echo -e "${YELLOW}âš ï¸  curl not found${NC}"
     echo "   Install: sudo pacman -S curl"
     read -p "   Install curl now? (y/n) " -n 1 -r
     echo
@@ -121,12 +121,12 @@ else
 fi
 
 echo ""
-echo -e "${GREEN}✅ Dependencies check complete!${NC}"
+echo -e "${GREEN}âœ… Dependencies check complete!${NC}"
 echo ""
 
 # Final check for Node.js (critical dependency)
 if ! command -v node &> /dev/null; then
-    echo -e "${RED}⚠️  Node.js is still not installed${NC}"
+    echo -e "${RED}âš ï¸  Node.js is still not installed${NC}"
     echo ""
     echo "Manual installation steps:"
     echo "  1. Update package database:"

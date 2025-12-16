@@ -24,13 +24,13 @@ else
 fi
 
 if [ -z "$TOKEN" ]; then
-    echo -e "${RED}❌ Token cannot be empty${NC}"
+    echo -e "${RED}âŒ Token cannot be empty${NC}"
     exit 1
 fi
 
 # Check if ngrok exists
 if [ ! -f "ngrok" ]; then
-    echo -e "${RED}❌ ngrok not found in project root${NC}"
+    echo -e "${RED}âŒ ngrok not found in project root${NC}"
     echo "   Run: ./scripts/download_ngrok_linux.sh first"
     exit 1
 fi
@@ -39,14 +39,14 @@ fi
 chmod +x ngrok
 
 # Configure authtoken
-echo -e "${YELLOW}🔐 Configuring ngrok authtoken...${NC}"
+echo -e "${YELLOW}ðŸ” Configuring ngrok authtoken...${NC}"
 ./ngrok config add-authtoken "$TOKEN"
 
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ Authtoken configured successfully!${NC}"
+    echo -e "${GREEN}âœ… Authtoken configured successfully!${NC}"
     echo ""
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}✅ ngrok is ready to use!${NC}"
+    echo -e "${GREEN}â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”${NC}"
+    echo -e "${GREEN}âœ… ngrok is ready to use!${NC}"
     echo ""
     echo "Test ngrok:"
     echo "  ${YELLOW}./ngrok version${NC}"
@@ -56,9 +56,9 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "Or start ngrok manually:"
     echo "  ${YELLOW}./ngrok http 5173${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”${NC}"
 else
-    echo -e "${RED}❌ Failed to configure authtoken${NC}"
+    echo -e "${RED}âŒ Failed to configure authtoken${NC}"
     exit 1
 fi
 

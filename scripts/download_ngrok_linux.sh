@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 
-echo -e "${GREEN}📥 Downloading ngrok Linux binary for Arch Linux...${NC}"
+echo -e "${GREEN}ðŸ“¥ Downloading ngrok Linux binary for Arch Linux...${NC}"
 echo ""
 
 # Check architecture
@@ -22,7 +22,7 @@ ARCH=$(uname -m)
 echo -e "${BLUE}Detected architecture: $ARCH${NC}"
 
 if [ "$ARCH" != "x86_64" ]; then
-    echo -e "${RED}❌ Unsupported architecture: $ARCH${NC}"
+    echo -e "${RED}âŒ Unsupported architecture: $ARCH${NC}"
     echo "   This script only supports x86_64"
     echo "   Please download manually from: https://ngrok.com/download"
     exit 1
@@ -35,20 +35,20 @@ echo ""
 
 # Backup Windows binary if exists
 if [ -f "ngrok" ]; then
-    echo -e "${YELLOW}⚠️  Found existing ngrok file${NC}"
+    echo -e "${YELLOW}âš ï¸  Found existing ngrok file${NC}"
     if file ngrok | grep -q "Windows\|PE32\|MS Windows"; then
         echo -e "${YELLOW}   Detected Windows binary, backing up...${NC}"
         mv ngrok ngrok.windows.backup
-        echo -e "${GREEN}   ✅ Backed up to ngrok.windows.backup${NC}"
+        echo -e "${GREEN}   âœ… Backed up to ngrok.windows.backup${NC}"
     fi
 fi
 
 # Download ngrok Linux binary
-echo -e "${YELLOW}📥 Downloading ngrok for Linux x86_64...${NC}"
+echo -e "${YELLOW}ðŸ“¥ Downloading ngrok for Linux x86_64...${NC}"
 wget -O ngrok_linux.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
 
 # Extract
-echo -e "${YELLOW}📦 Extracting...${NC}"
+echo -e "${YELLOW}ðŸ“¦ Extracting...${NC}"
 tar -xzf ngrok_linux.tgz
 
 # Remove downloaded archive
@@ -58,14 +58,14 @@ rm ngrok_linux.tgz
 chmod +x ngrok
 
 # Test
-echo -e "${YELLOW}🧪 Testing ngrok...${NC}"
+echo -e "${YELLOW}ðŸ§ª Testing ngrok...${NC}"
 if ./ngrok version &>/dev/null; then
-    echo -e "${GREEN}✅ ngrok Linux binary downloaded and ready!${NC}"
+    echo -e "${GREEN}âœ… ngrok Linux binary downloaded and ready!${NC}"
     echo ""
     ./ngrok version
     echo ""
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}📋 Next Steps:${NC}"
+    echo -e "${GREEN}â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”${NC}"
+    echo -e "${YELLOW}ðŸ“‹ Next Steps:${NC}"
     echo ""
     echo "1. Get your authtoken from:"
     echo "   ${BLUE}https://dashboard.ngrok.com/get-started/your-authtoken${NC}"
@@ -78,9 +78,9 @@ if ./ngrok version &>/dev/null; then
     echo ""
     echo "4. Start system with ngrok:"
     echo "   ${BLUE}./start.sh --ngrok${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”${NC}"
 else
-    echo -e "${RED}❌ ngrok binary is not working${NC}"
+    echo -e "${RED}âŒ ngrok binary is not working${NC}"
     echo "   Please check if the download was successful"
     exit 1
 fi
