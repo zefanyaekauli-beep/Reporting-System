@@ -54,6 +54,23 @@ class TrainingCreate(BaseModel):
     notes: Optional[str] = None
 
 
+class TrainingUpdate(BaseModel):
+    site_id: Optional[int] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    scheduled_date: Optional[datetime] = None
+    duration_minutes: Optional[int] = None
+    location: Optional[str] = None
+    instructor_id: Optional[int] = None
+    instructor_name: Optional[str] = None
+    max_participants: Optional[int] = None
+    min_participants: Optional[int] = None
+    division: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
+
+
 @router.get("", response_model=List[TrainingBase])
 def list_trainings(
     site_id: Optional[int] = Query(None),
@@ -298,5 +315,85 @@ def get_training_attendance(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get training attendance: {error_msg}"
+        )
+
+
+@router.patch("/{training_id}", response_model=TrainingBase)
+def update_training(
+    training_id: int,
+    data: TrainingUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_supervisor),
+):
+    """Update training plan"""
+    try:
+        company_id = current_user.get("company_id", 1)
+        
+        training = db.query(Training).filter(
+            Training.id == training_id,
+            Training.company_id == company_id,
+        ).first()
+        
+        if not training:
+            raise HTTPException(status_code=404, detail="Training not found")
+        
+        # Update fields if provided
+        if data.site_id is not None:
+            training.site_id = data.site_id
+        if data.title is not None:
+            training.title = data.title
+        if data.description is not None:
+            training.description = data.description
+        if data.category is not None:
+            training.category = data.category
+        if data.scheduled_date is not None:
+            training.scheduled_date = data.scheduled_date
+        if data.duration_minutes is not None:
+            training.duration_minutes = data.duration_minutes
+        if data.location is not None:
+            training.location = data.location
+        if data.instructor_id is not None:
+            training.instructor_id = data.instructor_id
+        if data.instructor_name is not None:
+            training.instructor_name = data.instructor_name
+        if data.max_participants is not None:
+            training.max_participants = data.max_participants
+        if data.min_participants is not None:
+            training.min_participants = data.min_participants
+        if data.division is not None:
+            training.division = data.division.upper() if data.division else None
+        if data.notes is not None:
+            training.notes = data.notes
+        if data.status is not None:
+            training.status = TrainingStatus[data.status.upper()]
+        
+        db.commit()
+        db.refresh(training)
+        
+        return TrainingBase(
+            id=training.id,
+            company_id=training.company_id,
+            site_id=training.site_id,
+            title=training.title,
+            description=training.description,
+            category=training.category,
+            scheduled_date=training.scheduled_date,
+            duration_minutes=training.duration_minutes,
+            location=training.location,
+            instructor_id=training.instructor_id,
+            instructor_name=training.instructor_name,
+            max_participants=training.max_participants,
+            status=training.status.value if hasattr(training.status, 'value') else str(training.status),
+            division=training.division,
+            created_at=training.created_at,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        api_logger.error(f"Error updating training: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update training: {str(e)}"
         )
 

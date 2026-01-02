@@ -49,11 +49,11 @@ class VisitorBase(BaseModel):
 
 @router.get("", response_model=List[VisitorBase])
 def list_visitors(
-    site_id: Optional[int] = Query(None),
+    site_id: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    from_date: Optional[date] = Query(None),
-    to_date: Optional[date] = Query(None),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -63,16 +63,39 @@ def list_visitors(
         
         q = db.query(Visitor).filter(Visitor.company_id == company_id)
         
+        # Parse site_id from string to int
         if site_id:
-            q = q.filter(Visitor.site_id == site_id)
+            try:
+                site_id_int = int(site_id)
+                q = q.filter(Visitor.site_id == site_id_int)
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid site_id format. Expected integer, got: {site_id}"
+                )
         if category:
             q = q.filter(Visitor.category == category.upper())
         if status:
             q = q.filter(Visitor.status == status.upper())
+        # Parse date strings to date objects
         if from_date:
-            q = q.filter(func.date(Visitor.visit_date) >= from_date)
+            try:
+                from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+                q = q.filter(func.date(Visitor.visit_date) >= from_date_obj)
+            except ValueError:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid from_date format. Expected YYYY-MM-DD, got: {from_date}"
+                )
         if to_date:
-            q = q.filter(func.date(Visitor.visit_date) <= to_date)
+            try:
+                to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+                q = q.filter(func.date(Visitor.visit_date) <= to_date_obj)
+            except ValueError:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid to_date format. Expected YYYY-MM-DD, got: {to_date}"
+                )
         
         visitors = q.order_by(Visitor.visit_date.desc()).limit(200).all()
         
@@ -149,23 +172,31 @@ async def register_visitor(
         photo_path = None
         id_card_photo_path = None
         
+        # Get site info for watermark
+        from app.models.site import Site
+        site = db.query(Site).filter(Site.id == site_id).first()
+        
         if photo:
-            safe_filename = re.sub(r'[^\w\-_\.]', '_', photo.filename or 'photo')
-            timestamp = int(datetime.utcnow().timestamp())
-            filename = f"{timestamp}_{safe_filename}"
-            photo_path = os.path.join(VISITOR_DIR, filename)
-            with open(photo_path, "wb") as out:
-                content = await photo.read()
-                out.write(content)
+            from app.services.evidence_storage import save_evidence_file
+            await photo.seek(0)
+            photo_path = await save_evidence_file(
+                photo,
+                upload_dir=VISITOR_DIR,
+                site_name=site.name if site else None,
+                report_type="Visitor Photo",
+                additional_info={"Visitor Name": name, "Purpose": purpose}
+            )
         
         if id_card_photo:
-            safe_filename = re.sub(r'[^\w\-_\.]', '_', id_card_photo.filename or 'id_card')
-            timestamp = int(datetime.utcnow().timestamp())
-            filename = f"{timestamp}_{safe_filename}"
-            id_card_photo_path = os.path.join(VISITOR_DIR, filename)
-            with open(id_card_photo_path, "wb") as out:
-                content = await id_card_photo.read()
-                out.write(content)
+            from app.services.evidence_storage import save_evidence_file
+            await id_card_photo.seek(0)
+            id_card_photo_path = await save_evidence_file(
+                id_card_photo,
+                upload_dir=VISITOR_DIR,
+                site_name=site.name if site else None,
+                report_type="Visitor ID Card",
+                additional_info={"Visitor Name": name, "ID Number": id_number}
+            )
         
         # Generate badge number
         from datetime import date
@@ -239,6 +270,168 @@ async def register_visitor(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to register visitor: {error_msg}"
+        )
+
+
+# IMPORTANT: /current and /stats routes must be BEFORE /{visitor_id} to avoid routing conflicts
+@router.get("/current", response_model=List[VisitorBase])
+def get_current_visitors(
+    site_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Get current visitors (not checked out)."""
+    try:
+        company_id = current_user.get("company_id", 1)
+        
+        q = db.query(Visitor).filter(
+            Visitor.company_id == company_id,
+            Visitor.is_checked_in == True,
+            Visitor.check_out_time == None,
+        )
+        
+        # Parse site_id from string to int
+        if site_id:
+            try:
+                site_id_int = int(site_id)
+                q = q.filter(Visitor.site_id == site_id_int)
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid site_id format. Expected integer, got: {site_id}"
+                )
+        
+        visitors = q.order_by(Visitor.check_in_time.desc()).all()
+        
+        result = []
+        for visitor in visitors:
+            result.append(VisitorBase(
+                id=visitor.id,
+                company_id=visitor.company_id,
+                site_id=visitor.site_id,
+                name=visitor.name,
+                company=visitor.company,
+                id_card_number=visitor.id_card_number,
+                phone=visitor.phone,
+                email=visitor.email,
+                purpose=visitor.purpose,
+                category=visitor.category,
+                visit_date=visitor.visit_date,
+                check_in_time=visitor.check_in_time,
+                check_out_time=visitor.check_out_time,
+                is_checked_in=visitor.is_checked_in,
+                host_user_id=visitor.host_user_id,
+                host_name=visitor.host_name,
+                status=visitor.status,
+                created_at=visitor.created_at,
+            ))
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        api_logger.error(f"Error getting current visitors: {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get current visitors: {error_msg}"
+        )
+
+
+@router.get("/stats")
+def get_visitor_stats(
+    site_id: Optional[str] = Query(None),
+    from_date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
+    to_date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Get visitor statistics."""
+    try:
+        company_id = current_user.get("company_id", 1)
+        
+        # Parse date strings to date objects
+        from_date_obj = None
+        to_date_obj = None
+        
+        if from_date:
+            try:
+                from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid from_date format. Expected YYYY-MM-DD, got: {from_date}"
+                )
+        
+        if to_date:
+            try:
+                to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid to_date format. Expected YYYY-MM-DD, got: {to_date}"
+                )
+        
+        q = db.query(Visitor).filter(Visitor.company_id == company_id)
+        
+        # Parse site_id from string to int
+        if site_id:
+            try:
+                site_id_int = int(site_id)
+                q = q.filter(Visitor.site_id == site_id_int)
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid site_id format. Expected integer, got: {site_id}"
+                )
+        if from_date_obj:
+            q = q.filter(func.date(Visitor.visit_date) >= from_date_obj)
+        if to_date_obj:
+            q = q.filter(func.date(Visitor.visit_date) <= to_date_obj)
+        
+        visitors = q.all()
+        
+        # Calculate stats
+        today = date.today()
+        total_visitors = len(visitors)
+        current_visitors = sum(1 for v in visitors if v.is_checked_in and not v.check_out_time)
+        
+        # Fix: Use date() method instead of func.date() in Python code
+        checked_out_today = sum(
+            1 for v in visitors 
+            if v.check_out_time and v.check_out_time.date() == today
+        )
+        
+        # Visitors by purpose
+        purpose_map = {}
+        for v in visitors:
+            purpose = v.purpose or "Other"
+            purpose_map[purpose] = purpose_map.get(purpose, 0) + 1
+        
+        # Visitors by hour (for peak hours)
+        hourly_map = {}
+        for v in visitors:
+            if v.check_in_time:
+                hour = v.check_in_time.hour
+                hourly_map[hour] = hourly_map.get(hour, 0) + 1
+        
+        return {
+            "total_visitors": total_visitors,
+            "current_visitors": current_visitors,
+            "checked_out_today": checked_out_today,
+            "visitors_by_purpose": purpose_map,
+            "visitors_by_hour": hourly_map,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        api_logger.error(f"Error getting visitor stats: {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get visitor stats: {error_msg}"
         )
 
 
@@ -359,25 +552,33 @@ async def update_visitor(
         if notes is not None:
             visitor.notes = notes
         
+        # Get site info for watermark
+        from app.models.site import Site
+        site = db.query(Site).filter(Site.id == visitor.site_id).first()
+        
         # Handle photo uploads
         if photo:
-            safe_filename = re.sub(r'[^\w\-_\.]', '_', photo.filename or 'photo')
-            timestamp = int(datetime.utcnow().timestamp())
-            filename = f"{timestamp}_{safe_filename}"
-            photo_path = os.path.join(VISITOR_DIR, filename)
-            with open(photo_path, "wb") as out:
-                content = await photo.read()
-                out.write(content)
+            from app.services.evidence_storage import save_evidence_file
+            await photo.seek(0)
+            photo_path = await save_evidence_file(
+                photo,
+                upload_dir=VISITOR_DIR,
+                site_name=site.name if site else None,
+                report_type="Visitor Photo",
+                additional_info={"Visitor Name": visitor.name, "Purpose": visitor.purpose}
+            )
             visitor.photo_path = photo_path
         
         if id_card_photo:
-            safe_filename = re.sub(r'[^\w\-_\.]', '_', id_card_photo.filename or 'id_card')
-            timestamp = int(datetime.utcnow().timestamp())
-            filename = f"{timestamp}_{safe_filename}"
-            id_card_photo_path = os.path.join(VISITOR_DIR, filename)
-            with open(id_card_photo_path, "wb") as out:
-                content = await id_card_photo.read()
-                out.write(content)
+            from app.services.evidence_storage import save_evidence_file
+            await id_card_photo.seek(0)
+            id_card_photo_path = await save_evidence_file(
+                id_card_photo,
+                upload_dir=VISITOR_DIR,
+                site_name=site.name if site else None,
+                report_type="Visitor ID Card",
+                additional_info={"Visitor Name": visitor.name, "ID Number": visitor.id_number}
+            )
             visitor.id_card_photo_path = id_card_photo_path
         
         visitor.updated_at = datetime.utcnow()

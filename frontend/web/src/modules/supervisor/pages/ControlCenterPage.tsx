@@ -34,11 +34,29 @@ interface CCTV {
 }
 
 export default function ControlCenterPage() {
+  console.log("ControlCenterPage: Component mounted");
+  
   const navigate = useNavigate();
   const { selectedSite } = useSite();
   const { showToast } = useToast();
+  
+  // Ensure we have site context
+  if (!selectedSite) {
+    console.warn("ControlCenterPage: No selected site");
+  }
+  // Initialize with default status to ensure content is always visible
+  const defaultStatus: ControlCenterStatus = {
+    total_on_duty: 0,
+    total_active_patrols: 0,
+    total_active_incidents: 0,
+    total_panic_alerts: 0,
+    total_dispatch_tickets: 0,
+    last_updated: new Date().toISOString(),
+  };
+
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<ControlCenterStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<ControlCenterStatus>(defaultStatus);
   const [activePatrols, setActivePatrols] = useState<ActivePatrol[]>([]);
   const [activeIncidents, setActiveIncidents] = useState<ActiveIncident[]>([]);
   const [panicAlerts, setPanicAlerts] = useState<PanicAlert[]>([]);
@@ -50,33 +68,63 @@ export default function ControlCenterPage() {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = selectedSite ? { site_id: selectedSite.id } : undefined;
 
       const [statusData, patrolsData, incidentsData, alertsData, ticketsData, cctvData] =
         await Promise.all([
-          getControlCenterStatus(params),
-          getActivePatrols(params),
-          getActiveIncidents(params),
-          getPanicAlerts({ ...params, status: "active" }),
-          getDispatchTickets({ ...params, status: "NEW,ASSIGNED,ONSCENE" }),
-          api.get("/cctv", { params: { ...params, is_active: true } }),
+          getControlCenterStatus(params).catch((e) => {
+            console.error("Error loading status:", e);
+            return null;
+          }),
+          getActivePatrols(params).catch((e) => {
+            console.error("Error loading patrols:", e);
+            return [];
+          }),
+          getActiveIncidents(params).catch((e) => {
+            console.error("Error loading incidents:", e);
+            return [];
+          }),
+          getPanicAlerts({ ...params, status: "active" }).catch((e) => {
+            console.error("Error loading panic alerts:", e);
+            return [];
+          }),
+          getDispatchTickets({ ...params, status: "NEW,ASSIGNED,ONSCENE" }).catch((e) => {
+            console.error("Error loading dispatch tickets:", e);
+            return [];
+          }),
+          api.get("/cctv", { params: { ...params, is_active: true } }).catch((e) => {
+            console.error("Error loading CCTV:", e);
+            return { data: [] };
+          }),
         ]);
 
+      if (statusData) {
       setStatus(statusData);
-      setActivePatrols(patrolsData);
-      setActiveIncidents(incidentsData);
-      setPanicAlerts(alertsData);
-      setDispatchTickets(ticketsData);
-      setCctvCameras(cctvData.data || []);
+      } else {
+        // Set default status if API fails
+        setStatus(defaultStatus);
+      }
+      setActivePatrols(patrolsData || []);
+      setActiveIncidents(incidentsData || []);
+      setPanicAlerts(alertsData || []);
+      setDispatchTickets(ticketsData || []);
+      setCctvCameras(cctvData?.data || []);
     } catch (err: any) {
       console.error("Failed to load control center data:", err);
-      showToast(err?.response?.data?.detail || "Gagal memuat data", "error");
+      const errorMsg = err?.response?.data?.detail || err?.message || "Gagal memuat data control center";
+      setError(errorMsg);
+      showToast(errorMsg, "error");
+      
+      // Set default empty state
+      setStatus(defaultStatus);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log("ControlCenterPage: Loading data...");
     loadData();
   }, [selectedSite]);
 
@@ -144,21 +192,11 @@ export default function ControlCenterPage() {
     }
   };
 
-  if (loading && !status) {
-    return (
-      <SupervisorLayout>
-        <div style={{ padding: 20 }}>
-          <div style={{ textAlign: "center", padding: 40 }}>
-            <div style={{ color: theme.colors.textSecondary }}>Memuat data...</div>
-          </div>
-        </div>
-      </SupervisorLayout>
-    );
-  }
+  console.log("ControlCenterPage: Rendering with status:", status);
 
   return (
     <SupervisorLayout>
-      <div style={{ padding: 20 }}>
+      <div style={{ padding: 20, minHeight: "100vh" }}>
         {/* Header */}
         <div
           style={{
@@ -197,8 +235,46 @@ export default function ControlCenterPage() {
           </div>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div
+            style={{
+              padding: 12,
+              backgroundColor: theme.colors.danger + "20",
+              border: `1px solid ${theme.colors.danger}`,
+              borderRadius: 8,
+              marginBottom: 20,
+              color: theme.colors.danger,
+              fontSize: 14,
+            }}
+          >
+            ⚠️ {error}
+            <button
+              onClick={loadData}
+              style={{
+                marginLeft: 12,
+                padding: "4px 8px",
+                backgroundColor: theme.colors.danger,
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              Coba Lagi
+            </button>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div style={{ textAlign: "center", padding: 20, marginBottom: 20 }}>
+            <div style={{ color: theme.colors.textSecondary, fontSize: 14 }}>Memuat data...</div>
+          </div>
+        )}
+
         {/* Status Cards */}
-        {status && (
           <div
             style={{
               display: "grid",
@@ -248,10 +324,9 @@ export default function ControlCenterPage() {
               </div>
             </Card>
           </div>
-        )}
 
-        {/* Map View */}
-        {activePatrols.length > 0 && (
+        {/* Map View - Always show if there are patrols or incidents */}
+        {(activePatrols.length > 0 || activeIncidents.length > 0) && (
           <Card hover={false} style={{ marginBottom: 24 }}>
             <h2
               style={{
@@ -275,6 +350,22 @@ export default function ControlCenterPage() {
               markers={[...getPatrolMarkers(), ...getIncidentMarkers()]}
               height="400px"
             />
+          </Card>
+        )}
+
+        {/* Info message if no data */}
+        {!loading && 
+         activePatrols.length === 0 && 
+         activeIncidents.length === 0 && 
+         panicAlerts.length === 0 && 
+         dispatchTickets.length === 0 && (
+          <Card hover={false} style={{ marginBottom: 24 }}>
+            <div style={{ textAlign: "center", padding: 40, color: theme.colors.textMuted }}>
+              <div style={{ fontSize: 16, marginBottom: 8 }}>📊 Control Center</div>
+              <div style={{ fontSize: 14 }}>
+                Tidak ada aktivitas aktif saat ini. Data akan muncul secara real-time ketika ada patrol, insiden, atau alert.
+              </div>
+            </div>
           </Card>
         )}
 

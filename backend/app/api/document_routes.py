@@ -112,18 +112,45 @@ async def upload_document(
         company_id = current_user.get("company_id", 1)
         user_id = current_user.get("id")
         
-        # Save file
+        # Save file - apply watermark if it's an image
         safe_filename = re.sub(r'[^\w\-_\.]', '_', file.filename or 'document')
         timestamp = int(datetime.utcnow().timestamp())
         filename = f"{timestamp}_{safe_filename}"
         file_path = os.path.join(DOCUMENTS_DIR, filename)
         
+        await file.seek(0)
+        content = await file.read()
+        mime_type = file.content_type or "application/octet-stream"
+        
+        # Apply watermark if it's an image
+        if mime_type and mime_type.startswith("image/"):
+            from app.services.watermark_service import watermark_service
+            from app.models.site import Site
+            from datetime import timezone as tz
+            try:
+                user = db.query(User).filter(User.id == user_id).first()
+                # Get user's default site if available
+                site = None
+                if hasattr(user, 'default_site_id') and user.default_site_id:
+                    site = db.query(Site).filter(Site.id == user.default_site_id).first()
+                
+                watermarked_content = watermark_service.add_watermark(
+                    content,
+                    timestamp=datetime.now(tz.utc),
+                    user_name=user.username if user else None,
+                    site_name=site.name if site else None,
+                    additional_info={"Document": title, "Type": document_type}
+                )
+                content = watermarked_content
+                api_logger.info(f"Watermark applied to document image: {filename}")
+            except Exception as e:
+                api_logger.warning(f"Failed to apply watermark to document, saving original: {e}")
+                # Continue with original content
+        
         with open(file_path, "wb") as out:
-            content = await file.read()
             out.write(content)
         
         file_size = len(content)
-        mime_type = file.content_type or "application/octet-stream"
         
         document = Document(
             company_id=company_id,

@@ -759,37 +759,29 @@ async def create_cleaning_report(
                 api_logger.error(f"Failed to create directory {CLEANING_REPORTS_DIR}: {error_type} - {error_msg}")
                 raise HTTPException(status_code=500, detail=f"Failed to create media directory: {error_msg}")
             
-            for f in evidence_files:
-                if f and f.filename:
-                    # Sanitize filename
-                    safe_filename = re.sub(r'[^\w\-_\.]', '_', f.filename)
-                    timestamp = int(datetime.utcnow().timestamp())
-                    filename = f"{timestamp}_{safe_filename}"
-                    
-                    # Use os.path.join for cross-platform compatibility
-                    file_path = os.path.join(CLEANING_REPORTS_DIR, filename)
-                    
-                    try:
-                        # Read file content
-                        content = await f.read()
-                        if not content:
-                            api_logger.warning(f"Empty file uploaded: {f.filename}")
-                            continue
-                        
-                        # Write file
-                        with open(file_path, "wb") as out:
-                            out.write(content)
-                        
-                        # Store relative path
-                        evidence_paths.append(file_path)
-                        api_logger.info(f"Saved evidence file: {file_path}")
-                    except Exception as file_err:
-                        error_msg = str(file_err)
-                        error_type = type(file_err).__name__
-                        api_logger.error(f"Failed to save file {f.filename}: {error_type} - {error_msg}")
-                        # Continue with other files, but log the error
-                        continue
-        
+            # Get site and user info for watermark
+            from app.models.site import Site
+            from app.models.user import User
+            site = db.query(Site).filter(Site.id == site_id).first()
+            user = db.query(User).filter(User.id == user_id).first()
+            
+            try:
+                from app.services.evidence_storage import save_multiple_evidence_files
+                evidence_paths = await save_multiple_evidence_files(
+                    [f for f in evidence_files if f and f.filename],
+                    upload_dir=CLEANING_REPORTS_DIR,
+                    location=location_text,
+                    site_name=site.name if site else None,
+                    user_name=user.username if user else None,
+                    report_type=report_type.strip(),
+                    additional_info={"Title": title[:50] if title else None, "Zone ID": str(zone_id) if zone_id else None}
+                )
+                api_logger.info(f"Saved {len(evidence_paths)} evidence files with watermark")
+            except Exception as file_err:
+                error_msg = str(file_err)
+                error_type = type(file_err).__name__
+                api_logger.error(f"Error saving evidence files: {error_type} - {error_msg}", exc_info=True)
+                evidence_paths = []  # Set empty list if save fails
         # Prepare report data
         report_data = {
             "company_id": company_id,
@@ -797,10 +789,7 @@ async def create_cleaning_report(
             "user_id": user_id,
             "division": "CLEANING",
             "report_type": report_type.strip(),
-            "zone_id": zone_id,
-            "location_id": None,
-            "location_text": location_text.strip() if location_text else None,
-            "title": title.strip(),
+            "title": title.strip() if title else None,
             "description": description.strip() if description else None,
             "severity": severity.strip() if severity else None,
             "status": "open",

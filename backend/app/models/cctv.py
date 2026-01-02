@@ -18,6 +18,7 @@ class CCTV(Base):
     
     name = Column(String(255), nullable=False)
     location = Column(String(255), nullable=True)
+    zone_name = Column(String(255), nullable=True, index=True)  # Zone assignment for grouping
     stream_url = Column(String(512), nullable=False)  # RTSP, HLS, or HTTP stream URL
     camera_type = Column(String(32), nullable=True)  # "ip_camera", "dvr", "nvr"
     stream_type = Column(String(32), nullable=True)  # "rtsp", "hls", "http"

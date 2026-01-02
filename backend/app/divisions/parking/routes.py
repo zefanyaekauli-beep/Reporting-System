@@ -107,14 +107,23 @@ async def create_parking_report(
 
         if evidence_files:
             try:
-                for f in evidence_files:
-                    filename = f"{int(datetime.utcnow().timestamp())}_{f.filename}"
-                    path = f"{PARKING_REPORTS_DIR}/{filename}"
-                    with open(path, "wb") as out:
-                        content = await f.read()
-                        out.write(content)
-                    evidence_paths.append(path)
-                    api_logger.info(f"Saved evidence file: {path}")
+                # Get site and user info for watermark
+                from app.models.site import Site
+                from app.models.user import User
+                site = db.query(Site).filter(Site.id == site_id).first()
+                user = db.query(User).filter(User.id == current_user.get("id")).first()
+                
+                from app.services.evidence_storage import save_multiple_evidence_files
+                evidence_paths = await save_multiple_evidence_files(
+                    evidence_files,
+                    upload_dir=PARKING_REPORTS_DIR,
+                    location=location_text,
+                    site_name=site.name if site else None,
+                    user_name=user.username if user else None,
+                    report_type=report_type.strip(),
+                    additional_info={"Title": title[:50] if title else None}
+                )
+                api_logger.info(f"Saved {len(evidence_paths)} evidence files with watermark")
             except Exception as file_err:
                 # Log error without trying to serialize UploadFile objects
                 error_msg = str(file_err)

@@ -3,8 +3,8 @@
 export const theme = {
   colors: {
     // Backgrounds - New Verolux Theme
-    appBg: "#FFFFF0", // ivory/cream background
-    background: "#FFFFF0", // ivory/cream app background
+    appBg: "#F8FAFC", // light gray background (slate-50)
+    background: "#F8FAFC", // light gray app background
     surface: "#FFFFFF", // white cards
     bgSecondary: "#F8FAFC", // light gray for secondary backgrounds
     

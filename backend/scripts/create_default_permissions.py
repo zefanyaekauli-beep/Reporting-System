@@ -5,6 +5,7 @@ Script to create default permissions and roles in the database
 
 import sys
 from pathlib import Path
+from datetime import datetime, timezone
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -96,6 +97,10 @@ DEFAULT_PERMISSIONS = [
     
     # Calendar
     {"name": "calendar.read", "resource": "calendar", "action": "read", "description": "View calendar"},
+    
+    # Profile
+    {"name": "profile.read", "resource": "profile", "action": "read", "description": "View own profile"},
+    {"name": "profile.write", "resource": "profile", "action": "write", "description": "Edit own profile"},
 ]
 
 # Default roles to create
@@ -112,6 +117,7 @@ def create_permissions(db: Session):
     """Create default permissions"""
     created = 0
     skipped = 0
+    now = datetime.now(timezone.utc)
     
     for perm_data in DEFAULT_PERMISSIONS:
         existing = db.query(Permission).filter(Permission.name == perm_data["name"]).first()
@@ -119,7 +125,16 @@ def create_permissions(db: Session):
             skipped += 1
             continue
         
-        permission = Permission(**perm_data)
+        # Ensure updated_at is set (required by database schema)
+        permission = Permission(
+            name=perm_data["name"],
+            resource=perm_data["resource"],
+            action=perm_data["action"],
+            description=perm_data.get("description"),
+            is_active=perm_data.get("is_active", True),
+            created_at=now,
+            updated_at=now  # Explicitly set updated_at
+        )
         db.add(permission)
         created += 1
     
@@ -131,6 +146,7 @@ def create_roles(db: Session):
     """Create default roles"""
     created = 0
     skipped = 0
+    now = datetime.now(timezone.utc)
     
     for role_data in DEFAULT_ROLES:
         existing = db.query(Role).filter(Role.name == role_data["name"]).first()
@@ -138,7 +154,16 @@ def create_roles(db: Session):
             skipped += 1
             continue
         
-        role = Role(**role_data)
+        # Ensure timestamps are set
+        role = Role(
+            name=role_data["name"],
+            display_name=role_data.get("display_name"),
+            description=role_data.get("description"),
+            is_system=role_data.get("is_system", False),
+            is_active=role_data.get("is_active", True),
+            created_at=now,
+            updated_at=now  # Explicitly set updated_at
+        )
         db.add(role)
         created += 1
     
@@ -148,6 +173,9 @@ def create_roles(db: Session):
 
 def assign_role_permissions(db: Session):
     """Assign default permissions to roles"""
+    from sqlalchemy import text
+    from datetime import datetime, timezone
+    
     # Get all permissions
     all_permissions = {p.name: p for p in db.query(Permission).all()}
     
@@ -189,23 +217,70 @@ def assign_role_permissions(db: Session):
         ],
     }
     
+    now = datetime.now(timezone.utc)
+    now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+    
     for role_name, perm_names in role_permission_mappings.items():
         role = db.query(Role).filter(Role.name == role_name).first()
         if not role:
             print(f"⚠️  Role {role_name} not found, skipping")
             continue
         
+        # Clear existing permissions first
+        db.execute(text("DELETE FROM role_permissions WHERE role_id = :role_id"), {"role_id": role.id})
+        
         if perm_names == ["*"]:
             # Admin gets all permissions
-            role.permissions = list(all_permissions.values())
+            permission_list = list(all_permissions.values())
         else:
             # Assign specific permissions
-            permissions = [all_permissions[name] for name in perm_names if name in all_permissions]
-            role.permissions = permissions
+            permission_list = [all_permissions[name] for name in perm_names if name in all_permissions]
         
-        print(f"✅ Assigned {len(role.permissions)} permissions to {role_name}")
+        # Insert using raw SQL to handle created_at if needed
+        # Check if created_at column exists
+        try:
+            result = db.execute(text("PRAGMA table_info(role_permissions)"))
+            columns = [row[1] for row in result]
+            has_created_at = 'created_at' in columns
+        except:
+            has_created_at = False
+        
+        if has_created_at:
+            # Insert with created_at
+            for perm in permission_list:
+                db.execute(
+                    text("INSERT OR IGNORE INTO role_permissions (role_id, permission_id, created_at) VALUES (:role_id, :perm_id, :created_at)"),
+                    {"role_id": role.id, "perm_id": perm.id, "created_at": now_str}
+                )
+        else:
+            # Insert without created_at
+            for perm in permission_list:
+                db.execute(
+                    text("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (:role_id, :perm_id)"),
+                    {"role_id": role.id, "perm_id": perm.id}
+                )
+        
+        print(f"✅ Assigned {len(permission_list)} permissions to {role_name}")
     
     db.commit()
+
+def check_tables_exist(db: Session):
+    """Check if permissions and roles tables exist"""
+    from sqlalchemy import inspect
+    inspector = inspect(db.bind)
+    tables = inspector.get_table_names()
+    
+    if 'permissions' not in tables:
+        print("⚠️  'permissions' table not found. Creating tables...")
+        from app.models.base import Base
+        Base.metadata.create_all(bind=db.bind)
+        print("✅ Tables created")
+    
+    if 'roles' not in tables:
+        print("⚠️  'roles' table not found. Creating tables...")
+        from app.models.base import Base
+        Base.metadata.create_all(bind=db.bind)
+        print("✅ Tables created")
 
 def main():
     db = SessionLocal()
@@ -214,24 +289,43 @@ def main():
         print("Creating Default Permissions and Roles")
         print("=" * 60)
         
+        # Check if tables exist
+        check_tables_exist(db)
+        
         # Create permissions
+        print("\n📝 Creating permissions...")
         create_permissions(db)
         
         # Create roles
+        print("\n👥 Creating roles...")
         create_roles(db)
         
         # Assign permissions to roles
+        print("\n🔗 Assigning permissions to roles...")
         assign_role_permissions(db)
         
-        print("=" * 60)
+        # Verify
+        print("\n🔍 Verifying data...")
+        perm_count = db.query(Permission).count()
+        role_count = db.query(Role).count()
+        print(f"   Permissions in database: {perm_count}")
+        print(f"   Roles in database: {role_count}")
+        
+        print("\n" + "=" * 60)
         print("✅ Default permissions and roles created successfully!")
         print("=" * 60)
+        print("\n💡 You can now access Roles & Permissions page in the frontend")
+        print("   URL: /supervisor/admin/roles")
         
     except Exception as e:
         db.rollback()
-        print(f"❌ Error: {e}")
+        print(f"\n❌ Error: {e}")
         import traceback
         traceback.print_exc()
+        print("\n💡 Troubleshooting:")
+        print("   1. Make sure database is accessible")
+        print("   2. Check if migrations have been run: alembic upgrade head")
+        print("   3. Verify database file exists: ls -la verolux_test.db")
         sys.exit(1)
     finally:
         db.close()

@@ -15,6 +15,8 @@ import { ProfilePage } from "../modules/shared/pages/ProfilePage";
 import { SecurityReportFormPage } from "../modules/security/pages/SecurityReportFormPage";
 import { SecurityReportsListPage } from "../modules/security/pages/SecurityReportsListPage";
 import { SecurityReportDetailPage } from "../modules/security/pages/SecurityReportDetailPage";
+import { SecurityIntelligenceReportFormPage } from "../modules/security/pages/SecurityIntelligenceReportFormPage";
+import { SecurityIntelligenceReportListPage } from "../modules/security/pages/SecurityIntelligenceReportListPage";
 import { SecurityAttendancePage } from "../modules/security/pages/SecurityAttendancePage";
 import { SecurityPatrolFormPage } from "../modules/security/pages/SecurityPatrolFormPage";
 import { SecurityPatrolListPage } from "../modules/security/pages/SecurityPatrolListPage";
@@ -117,6 +119,82 @@ import { PatrolTargetManagementPage } from "../modules/supervisor/pages/PatrolTa
 import { PatrolTeamManagementPage } from "../modules/supervisor/pages/PatrolTeamManagementPage";
 import { TrainingPage } from "../modules/supervisor/pages/TrainingPage";
 import { VisitorManagementPage } from "../modules/security/pages/VisitorManagementPage";
+// DAR pages
+import { DARListPage } from "../modules/supervisor/pages/Reporting/DAR";
+import { DARFormPage } from "../modules/supervisor/pages/Reporting/DAR/DARFormPage";
+import { DARDetailPage } from "../modules/supervisor/pages/Reporting/DAR/DARDetailPage";
+// Visitors pages
+import { VisitorsReportPage } from "../modules/supervisor/pages/Reporting/Visitors";
+import { VisitorFormPage } from "../modules/supervisor/pages/Reporting/Visitors/VisitorFormPage";
+import { VisitorDetailPage } from "../modules/supervisor/pages/Reporting/Visitors/VisitorDetailPage";
+// Patrol pages
+import { PatrolSchedulePage } from "../modules/supervisor/pages/Patrol/Schedule";
+import { ScheduleFormPage } from "../modules/supervisor/pages/Patrol/Schedule/ScheduleFormPage";
+import { ScheduleEditPage } from "../modules/supervisor/pages/Patrol/Schedule/ScheduleEditPage";
+import { ScheduleAssignPage } from "../modules/supervisor/pages/Patrol/Schedule/ScheduleAssignPage";
+import { PatrolAssignmentPage } from "../modules/supervisor/pages/Patrol/Assignment";
+import { AssignmentFormPage } from "../modules/supervisor/pages/Patrol/Assignment/AssignmentFormPage";
+import { AssignmentDetailPage } from "../modules/supervisor/pages/Patrol/Assignment/AssignmentDetailPage";
+import { PatrolSecurityPage } from "../modules/supervisor/pages/Patrol/Security";
+import { PatrolReportPage } from "../modules/supervisor/pages/Patrol/Report";
+import { ReportDetailPage } from "../modules/supervisor/pages/Patrol/Report/ReportDetailPage";
+import { ReportFormPage } from "../modules/supervisor/pages/Patrol/Report/ReportFormPage";
+import { PatrolJointPage } from "../modules/supervisor/pages/Patrol/Joint";
+import { JointFormPage } from "../modules/supervisor/pages/Patrol/Joint/JointFormPage";
+import { JointDetailPage } from "../modules/supervisor/pages/Patrol/Joint/JointDetailPage";
+// Incident pages
+import { LKLPListPage } from "../modules/supervisor/pages/Incident/LKLP";
+import { LKLPFormPage } from "../modules/supervisor/pages/Incident/LKLP/LKLPFormPage";
+import { LKLPDetailPage } from "../modules/supervisor/pages/Incident/LKLP/LKLPDetailPage";
+import { BAPListPage } from "../modules/supervisor/pages/Incident/BAP";
+import { BAPFormPage } from "../modules/supervisor/pages/Incident/BAP/BAPFormPage";
+import { BAPDetailPage } from "../modules/supervisor/pages/Incident/BAP/BAPDetailPage";
+import { STPLKListPage } from "../modules/supervisor/pages/Incident/STPLK";
+import { STPLKFormPage } from "../modules/supervisor/pages/Incident/STPLK/STPLKFormPage";
+import { STPLKDetailPage } from "../modules/supervisor/pages/Incident/STPLK/STPLKDetailPage";
+import { FindingsListPage } from "../modules/supervisor/pages/Incident/Findings";
+import { FindingsFormPage } from "../modules/supervisor/pages/Incident/Findings/FindingsFormPage";
+import { FindingsDetailPage } from "../modules/supervisor/pages/Incident/Findings/FindingsDetailPage";
+import { IncidentRecapPage } from "../modules/supervisor/pages/Incident/Recap";
+// Compliance pages
+import { CompliancePage } from "../modules/supervisor/pages/Reporting/Compliance";
+// Training pages
+import { TrainingPlanPage } from "../modules/supervisor/pages/Training/Plan";
+import { TrainingPlanFormPage } from "../modules/supervisor/pages/Training/Plan/TrainingPlanFormPage";
+import { TrainingPlanDetailPage } from "../modules/supervisor/pages/Training/Plan/TrainingPlanDetailPage";
+import { TrainingParticipantPage } from "../modules/supervisor/pages/Training/Participant";
+import { ParticipantFormPage } from "../modules/supervisor/pages/Training/Participant/ParticipantFormPage";
+// KPI pages
+import { KPIPatrolPage } from "../modules/supervisor/pages/KPI/Patrol";
+import { KPIReportPage } from "../modules/supervisor/pages/KPI/Report";
+import { KPICCTVPage } from "../modules/supervisor/pages/KPI/CCTV";
+import { KPITrainingPage } from "../modules/supervisor/pages/KPI/Training";
+// Master Data pages
+import { MasterWorkerPage } from "../modules/supervisor/pages/Master/Worker";
+import { WorkerFormPage } from "../modules/supervisor/pages/Master/Worker/WorkerFormPage";
+import { MasterBusinessUnitPage } from "../modules/supervisor/pages/Master/BusinessUnit";
+import { BusinessUnitFormPage } from "../modules/supervisor/pages/Master/BusinessUnit/BusinessUnitFormPage";
+import { MasterDepartmentPage } from "../modules/supervisor/pages/Master/Department";
+import { DepartmentFormPage } from "../modules/supervisor/pages/Master/Department/DepartmentFormPage";
+import { MasterPatrolPointsPage } from "../modules/supervisor/pages/Master/PatrolPoints";
+import { PatrolPointFormPage } from "../modules/supervisor/pages/Master/PatrolPoints/PatrolPointFormPage";
+import { MasterJobPositionPage } from "../modules/supervisor/pages/Master/JobPosition";
+import { JobPositionFormPage } from "../modules/supervisor/pages/Master/JobPosition/JobPositionFormPage";
+import { MasterAssetPage } from "../modules/supervisor/pages/Master/Asset";
+import { AssetFormPage } from "../modules/supervisor/pages/Assets/AssetFormPage";
+import { MasterAssetCategoryPage } from "../modules/supervisor/pages/Master/AssetCategory";
+import { AssetCategoryFormPage } from "../modules/supervisor/pages/Master/AssetCategory/AssetCategoryFormPage";
+import { MasterCCTVZonePage } from "../modules/supervisor/pages/Master/CCTVZone";
+import { CCTVZoneFormPage } from "../modules/supervisor/pages/Master/CCTVZone/CCTVZoneFormPage";
+// Admin pages
+import { AdminUserAccessPage } from "../modules/supervisor/pages/Admin/UserAccess";
+import { AdminUsersPage } from "../modules/supervisor/pages/Admin/Users";
+import { AdminIncidentAccessPage } from "../modules/supervisor/pages/Admin/IncidentAccess";
+import { AdminTranslationPage } from "../modules/supervisor/pages/Admin/Translation";
+// Information pages
+import { InformationDocumentPage } from "../modules/supervisor/pages/Information/Document";
+import { InformationCCTVPage } from "../modules/supervisor/pages/Information/CCTV";
+import { InformationNotificationPage } from "../modules/supervisor/pages/Information/Notification";
 
 function DivisionHomeRedirect() {
   const division = useAuthStore((s) => s.division);
@@ -176,6 +254,95 @@ export function AppRoutes() {
               <Route path="checklist-templates" element={<SupervisorChecklistTemplatePage />} />
               <Route path="inspectpoints" element={<InspectPointListPage />} />
               <Route path="reports" element={<SupervisorReportsPage />} />
+              <Route path="reports/:id" element={<SecurityReportDetailPage />} />
+              <Route path="reporting/dar" element={<DARListPage />} />
+              <Route path="reporting/dar/new" element={<DARFormPage />} />
+              <Route path="reporting/dar/:id" element={<DARDetailPage />} />
+              <Route path="reporting/dar/:id/edit" element={<DARFormPage />} />
+              <Route path="reporting/visitors" element={<VisitorsReportPage />} />
+              <Route path="reporting/visitors/new" element={<VisitorFormPage />} />
+              <Route path="reporting/visitors/:id" element={<VisitorDetailPage />} />
+              <Route path="reporting/visitors/:id/edit" element={<VisitorFormPage />} />
+              <Route path="patrol/schedule" element={<PatrolSchedulePage />} />
+              <Route path="patrol/schedule/new" element={<ScheduleFormPage />} />
+              <Route path="patrol/schedule/:id/edit" element={<ScheduleEditPage />} />
+              <Route path="patrol/schedule/:id/assign" element={<ScheduleAssignPage />} />
+              <Route path="patrol/assignment" element={<PatrolAssignmentPage />} />
+              <Route path="patrol/assignment/new" element={<AssignmentFormPage />} />
+              <Route path="patrol/assignment/:id" element={<AssignmentDetailPage />} />
+              <Route path="patrol/security" element={<PatrolSecurityPage />} />
+              <Route path="patrol/joint" element={<PatrolJointPage />} />
+              <Route path="patrol/joint/new" element={<JointFormPage />} />
+              <Route path="patrol/joint/:id" element={<JointDetailPage />} />
+              <Route path="patrol/joint/:id/edit" element={<JointFormPage />} />
+              <Route path="patrol/report" element={<PatrolReportPage />} />
+              <Route path="patrol/report/new" element={<ReportFormPage />} />
+              <Route path="patrol/report/:id" element={<ReportDetailPage />} />
+              <Route path="patrol/report/:id/edit" element={<ReportFormPage />} />
+              <Route path="incident/lk-lp" element={<LKLPListPage />} />
+              <Route path="incident/lk-lp/new" element={<LKLPFormPage />} />
+              <Route path="incident/lk-lp/:id" element={<LKLPDetailPage />} />
+              <Route path="incident/lk-lp/:id/edit" element={<LKLPFormPage />} />
+              <Route path="incident/bap" element={<BAPListPage />} />
+              <Route path="incident/bap/new" element={<BAPFormPage />} />
+              <Route path="incident/bap/:id" element={<BAPDetailPage />} />
+              <Route path="incident/bap/:id/edit" element={<BAPFormPage />} />
+              <Route path="incident/stplk" element={<STPLKListPage />} />
+              <Route path="incident/stplk/new" element={<STPLKFormPage />} />
+              <Route path="incident/stplk/:id" element={<STPLKDetailPage />} />
+              <Route path="incident/stplk/:id/edit" element={<STPLKFormPage />} />
+              <Route path="incident/findings" element={<FindingsListPage />} />
+              <Route path="incident/findings/new" element={<FindingsFormPage />} />
+              <Route path="incident/findings/:id" element={<FindingsDetailPage />} />
+              <Route path="incident/findings/:id/edit" element={<FindingsFormPage />} />
+              <Route path="incident/recap" element={<IncidentRecapPage />} />
+              <Route path="reporting/compliance" element={<CompliancePage />} />
+              <Route path="training/plan" element={<TrainingPlanPage />} />
+              <Route path="training/plan/new" element={<TrainingPlanFormPage />} />
+              <Route path="training/plan/:id" element={<TrainingPlanDetailPage />} />
+              <Route path="training/plan/:id/edit" element={<TrainingPlanFormPage />} />
+              <Route path="training/participant" element={<TrainingParticipantPage />} />
+              <Route path="training/participant/new" element={<ParticipantFormPage />} />
+              <Route path="kpi/patrol" element={<KPIPatrolPage />} />
+              <Route path="kpi/report" element={<KPIReportPage />} />
+              <Route path="kpi/cctv" element={<KPICCTVPage />} />
+              <Route path="kpi/training" element={<KPITrainingPage />} />
+              <Route path="master/worker" element={<MasterWorkerPage />} />
+              <Route path="master/worker/new" element={<WorkerFormPage />} />
+              <Route path="master/worker/:id/edit" element={<WorkerFormPage />} />
+              <Route path="master/business-unit" element={<MasterBusinessUnitPage />} />
+              <Route path="master/business-unit/new" element={<BusinessUnitFormPage />} />
+              <Route path="master/business-unit/:id/edit" element={<BusinessUnitFormPage />} />
+              <Route path="master/department" element={<MasterDepartmentPage />} />
+              <Route path="master/department/new" element={<DepartmentFormPage />} />
+              <Route path="master/department/:id/edit" element={<DepartmentFormPage />} />
+              <Route path="master/patrol-points" element={<MasterPatrolPointsPage />} />
+              <Route path="master/patrol-points/new" element={<PatrolPointFormPage />} />
+              <Route path="master/patrol-points/:id/edit" element={<PatrolPointFormPage />} />
+              <Route path="master/job-position" element={<MasterJobPositionPage />} />
+              <Route path="master/job-position/new" element={<JobPositionFormPage />} />
+              <Route path="master/job-position/:id/edit" element={<JobPositionFormPage />} />
+              <Route path="master/asset" element={<MasterAssetPage />} />
+              <Route path="master/asset/new" element={<AssetFormPage />} />
+              <Route path="master/asset/:id/edit" element={<AssetFormPage />} />
+              <Route path="master/asset-category" element={<MasterAssetCategoryPage />} />
+              <Route path="master/asset-category/new" element={<AssetCategoryFormPage />} />
+              <Route path="master/asset-category/:id/edit" element={<AssetCategoryFormPage />} />
+              <Route path="master/cctv-zone" element={<MasterCCTVZonePage />} />
+              <Route path="master/cctv-zone/new" element={<CCTVZoneFormPage />} />
+              <Route path="master/cctv-zone/:id/edit" element={<CCTVZoneFormPage />} />
+              <Route path="admin/user-access" element={<AdminUserAccessPage />} />
+              <Route path="admin/users" element={<AdminUsersPage />} />
+              <Route path="admin/incident-access" element={<AdminIncidentAccessPage />} />
+              <Route path="admin/translation" element={<AdminTranslationPage />} />
+              <Route path="information/document" element={<InformationDocumentPage />} />
+              <Route path="information/cctv" element={<InformationCCTVPage />} />
+              <Route path="information/notification" element={<InformationNotificationPage />} />
+              <Route path="intelligence-reports" element={<SecurityIntelligenceReportListPage />} />
+              <Route path="intelligence-reports/new" element={<SecurityIntelligenceReportFormPage />} />
+              {/* Alias for menu compatibility */}
+              <Route path="reporting/intelligent" element={<SecurityIntelligenceReportListPage />} />
+              <Route path="reporting/intelligent/new" element={<SecurityIntelligenceReportFormPage />} />
               <Route path="sites" element={<SupervisorSitesPage />} />
               <Route path="announcements" element={<SupervisorAnnouncementsPage />} />
               <Route path="shifts" element={<SupervisorShiftCalendarPage />} />
@@ -365,6 +532,8 @@ export function AppRoutes() {
         <Route path="/security/reports" element={<SecurityReportsListPage />} />
         <Route path="/security/reports/:id" element={<SecurityReportDetailPage />} />
         <Route path="/security/reports/new" element={<SecurityReportFormPage />} />
+        <Route path="/security/intelligence-reports" element={<SecurityIntelligenceReportListPage />} />
+        <Route path="/security/intelligence-reports/new" element={<SecurityIntelligenceReportFormPage />} />
         <Route path="/security/patrol" element={<SecurityPatrolListPage />} />
         <Route path="/security/patrol/:id" element={<SecurityPatrolDetailPage />} />
         <Route path="/security/patrol/new" element={<SecurityPatrolFormPage />} />

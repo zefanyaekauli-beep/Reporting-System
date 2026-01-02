@@ -33,23 +33,27 @@ def safe_datetime_to_str(dt) -> str:
         api_logger.warning(f"Failed to convert datetime: {e}")
         return ""
 
-def save_uploaded_file(file: UploadFile, upload_dir: str = "uploads/evidence") -> str:
-    """Save uploaded file and return the file path"""
+async def save_uploaded_file(
+    file: UploadFile, 
+    upload_dir: str = "uploads/evidence",
+    location: Optional[str] = None,
+    site_name: Optional[str] = None,
+    user_name: Optional[str] = None,
+    report_type: Optional[str] = None,
+    additional_info: Optional[dict] = None
+) -> str:
+    """Save uploaded file with watermark and return the file path"""
     try:
-        # Create upload directory if it doesn't exist
-        os.makedirs(upload_dir, exist_ok=True)
-        
-        # Generate unique filename
-        ext = os.path.splitext(file.filename)[1] if file.filename else '.jpg'
-        filename = f"{uuid.uuid4()}{ext}"
-        filepath = os.path.join(upload_dir, filename)
-        
-        # Save file
-        with open(filepath, "wb") as f:
-            content = file.file.read()
-            f.write(content)
-        
-        return filepath
+        from app.services.evidence_storage import save_evidence_file
+        return await save_evidence_file(
+            file,
+            upload_dir=upload_dir,
+            location=location,
+            site_name=site_name,
+            user_name=user_name,
+            report_type=report_type,
+            additional_info=additional_info
+        )
     except Exception as e:
         api_logger.error(f"Failed to save file {file.filename}: {e}")
         raise HTTPException(
@@ -127,15 +131,28 @@ async def create_security_report(
                 detail=f"Invalid report type. Must be one of: {', '.join(valid_report_types)}"
             )
         
-        # Save evidence files
+        # Get site and user info for watermark
+        from app.models.site import Site
+        from app.models.user import User
+        site = db.query(Site).filter(Site.id == site_id).first()
+        user = db.query(User).filter(User.id == user_id).first()
+        
+        # Save evidence files with watermark
         evidence_paths = []
         if evidence_files:
             for file in evidence_files:
                 if file.filename:  # Skip empty file uploads
                     try:
-                        filepath = save_uploaded_file(file)
+                        filepath = await save_uploaded_file(
+                            file,
+                            location=location_text,
+                            site_name=site.name if site else None,
+                            user_name=user.username if user else None,
+                            report_type=report_type,
+                            additional_info={"Title": title[:50] if title else None, "Severity": severity}
+                        )
                         evidence_paths.append(filepath)
-                        api_logger.info(f"Saved evidence file: {filepath}")
+                        api_logger.info(f"Saved evidence file with watermark: {filepath}")
                     except Exception as file_err:
                         api_logger.error(f"Failed to save evidence file: {file_err}")
                         # Continue with other files even if one fails

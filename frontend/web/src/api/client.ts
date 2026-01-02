@@ -24,11 +24,16 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token;
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
+  // Skip adding Authorization header for login endpoint
+  const isLoginEndpoint = config.url?.includes("/auth/login");
+  
+  if (!isLoginEndpoint) {
+    const token = useAuthStore.getState().token;
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
     }
+  }
   
   console.log("API Request:", {
     method: config.method?.toUpperCase(),

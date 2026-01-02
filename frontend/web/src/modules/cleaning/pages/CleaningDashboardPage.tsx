@@ -7,11 +7,22 @@ import { MobileLayout } from "../../shared/components/MobileLayout";
 import { theme } from "../../shared/components/theme";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { SiteSelector, SiteOption } from "../../shared/components/SiteSelector";
-import { getTodayCleaningAttendance, CleaningAttendance, listCleaningReports } from "../../../api/cleaningApi";
+import { listCleaningReports } from "../../../api/cleaningApi";
+import { listMyAttendance } from "../../../api/attendanceApi";
 import { PengumumanCard } from "../../shared/components/PengumumanCard";
 import { IconActionButton } from "../../shared/components/ui/IconActionButton";
 import { AppIcons } from "../../../icons/AppIcons";
 import api from "../../../api/client";
+import { useAuthStore } from "../../../stores/authStore";
+
+interface Attendance {
+  id: number;
+  site_id: number;
+  site_name?: string;
+  checkin_time: string | null;
+  checkout_time: string | null;
+  status: string;
+}
 
 interface ReportsSummary {
   total: number;
@@ -22,6 +33,7 @@ interface ReportsSummary {
 export function CleaningDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   
   const [sites] = useState<SiteOption[]>([
     { id: 1, name: "Situs A" },
@@ -32,7 +44,7 @@ export function CleaningDashboardPage() {
     sites.length ? sites[0].id : null
   );
 
-  const [attendance, setAttendance] = useState<CleaningAttendance | null>(null);
+  const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [reportsSummary, setReportsSummary] = useState<ReportsSummary | null>(null);
   const [checklistSummary, setChecklistSummary] = useState<{
     total: number;
@@ -63,26 +75,72 @@ export function CleaningDashboardPage() {
 
   useEffect(() => {
     const load = async () => {
-      if (!siteId) return;
+      if (!user?.id) return;
 
       setLoading(true);
       try {
-        // Attendance
-        const { data: att } = await getTodayCleaningAttendance(siteId);
-        setAttendance(att || null);
-
-        // Reports summary
+        // Get today's attendance for current user
         try {
-          const { data: reports } = await listCleaningReports({ site_id: siteId });
-          const total = reports?.length ?? 0;
-          const incidents = reports?.filter(
+          const myAttendance = await listMyAttendance("CLEANING");
+          const today = new Date().toISOString().split("T")[0];
+          
+          // Find today's attendance (most recent if multiple)
+          const todayAttendance = myAttendance
+            .filter((att) => {
+              if (!att.checkin_time) return false;
+              const attDate = new Date(att.checkin_time).toISOString().split("T")[0];
+              return attDate === today;
+            })
+            .sort((a, b) => {
+              // Sort by checkin_time descending (most recent first)
+              if (!a.checkin_time || !b.checkin_time) return 0;
+              return new Date(b.checkin_time).getTime() - new Date(a.checkin_time).getTime();
+            })[0]; // Get the most recent one
+          
+          if (todayAttendance) {
+            setAttendance({
+              id: todayAttendance.id,
+              site_id: todayAttendance.site_id,
+              site_name: todayAttendance.site_name,
+              checkin_time: todayAttendance.checkin_time,
+              checkout_time: todayAttendance.checkout_time,
+              status: todayAttendance.status,
+            });
+            
+            // Update siteId from attendance if available
+            if (todayAttendance.site_id && !siteId) {
+              setSiteId(todayAttendance.site_id);
+            }
+          } else {
+            setAttendance(null);
+          }
+        } catch (err) {
+          console.error("Gagal memuat absensi:", err);
+          setAttendance(null);
+        }
+
+        // Reports summary - get reports for current user (today only)
+        try {
+          const today = new Date().toISOString().split("T")[0];
+          const { data: reports } = await listCleaningReports({});
+          
+          // Filter reports by current user and today's date
+          const userReports = (reports || []).filter((r: any) => {
+            if (!user?.id || r.user_id !== user.id) return false;
+            const reportDate = new Date(r.created_at).toISOString().split("T")[0];
+            return reportDate === today;
+          });
+          
+          const total = userReports.length;
+          const incidents = userReports.filter(
             (r: any) => r.report_type === "incident"
-          ).length ?? 0;
-          const daily = reports?.filter(
+          ).length;
+          const daily = userReports.filter(
             (r: any) => r.report_type === "daily"
-          ).length ?? 0;
+          ).length;
           setReportsSummary({ total, incidents, daily });
         } catch (err) {
+          console.error("Gagal memuat laporan:", err);
           setReportsSummary({ total: 0, incidents: 0, daily: 0 });
         }
 
@@ -156,7 +214,7 @@ export function CleaningDashboardPage() {
             color: theme.colors.textMain,
           }}
         >
-          {sites.find((s) => s.id === siteId)?.name ?? "–"}
+          {attendance?.site_name ?? sites.find((s) => s.id === siteId)?.name ?? "–"}
         </div>
 
         {/* Shift info grid */}
@@ -318,7 +376,7 @@ export function CleaningDashboardPage() {
             >
               {checklistSummary
                 ? `${checklistSummary.completed}/${checklistSummary.total} selesai`
-                : "No checklist"}
+                : "Tidak ada checklist"}
             </div>
           </div>
           {shiftDuration() && (

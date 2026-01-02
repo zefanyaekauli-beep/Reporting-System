@@ -333,6 +333,9 @@ class DailyActivityReport(Base):
     Daily Activity Report (DAR).
     Auto-compiled from check-ins, tours, incidents, notes, photos.
     Per shift / per site → PDF/HTML for client.
+    
+    NOTE: This is the OLD auto-compiled DAR model.
+    The NEW manual DAR model is in app.models.dar.DailyActivityReport
     """
     __tablename__ = "daily_activity_reports"
 

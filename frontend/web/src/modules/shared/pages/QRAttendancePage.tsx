@@ -130,7 +130,7 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
       
       scannerRef.current = html5QrCode;
     } catch (err: any) {
-      console.error("Failed to start scanner:", err);
+      console.error("Gagal memulai scanner:", err);
       let errorMessage = "Gagal membuka kamera";
       
       if (err.name === "NotAllowedError" || err.message?.includes("permission")) {
@@ -214,22 +214,75 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
   };
 
   const handlePhotoCapture = async (file: File | null) => {
-    console.log("📸 [handlePhotoCapture] Photo received:", file ? file.name : "null");
-    // setShowPhotoPrompt(false);
+    console.log("=".repeat(60));
+    console.log("📸 [handlePhotoCapture] === PHOTO CAPTURE STARTED ===");
+    console.log("=".repeat(60));
+    console.log("📸 Photo received:", file ? file.name : "null");
+    
+    if (file) {
+      console.log("📸 File details:", {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: new Date(file.lastModified).toISOString(),
+        isFile: file instanceof File,
+        isBlob: file instanceof Blob
+      });
+      
+      // Verify file is valid
+      if (file.size === 0) {
+        console.error("❌ ERROR: Photo file has 0 bytes!");
+        setErrorMsg("Foto tidak valid (0 bytes). Silakan ambil foto lagi.");
+        setPendingQrData(null);
+        return;
+      }
+      
+      if (!file.type.startsWith("image/")) {
+        console.warn("⚠️ WARNING: File type is not an image:", file.type);
+      } else {
+        console.log("✅ File type is valid image:", file.type);
+      }
+      
+      // Read file as data URL to verify it's actually an image
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (typeof result === "string") {
+          console.log("✅ File can be read as data URL, length:", result.length);
+          // Check if it's a valid image data URL
+          if (result.startsWith("data:image/")) {
+            console.log("✅ File is valid image format (verified via FileReader)");
+          } else {
+            console.warn("⚠️ FileReader result doesn't look like an image data URL");
+          }
+        }
+      };
+      reader.onerror = (err) => {
+        console.error("❌ ERROR reading file with FileReader:", err);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      console.warn("⚠️ No photo file provided - will proceed without photo");
+    }
     
     if (!pendingQrData) {
       console.error("❌ No pending QR data");
+      setErrorMsg("QR code tidak ditemukan. Silakan scan ulang.");
       return;
     }
 
+    console.log("📸 Proceeding to process attendance with photo...");
     await processAttendance(pendingQrData, file);
     setPendingQrData(null);
+    console.log("=".repeat(60));
+    console.log("📸 [handlePhotoCapture] === PHOTO CAPTURE COMPLETED ===");
+    console.log("=".repeat(60));
   };
 
   const processAttendance = async (qrText: string, photo: File | null) => {
     try {
       console.log("🌐 [processAttendance] === Submitting to Backend ===");
-      setLoadingState({ show: true, message: "Loading", progress: 0 });
+      setLoadingState({ show: true, message: "Memuat", progress: 0 });
 
       // Get location
       let location: { latitude: number | null; longitude: number | null; accuracy: number | null } = {
@@ -246,14 +299,50 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
         console.warn("⚠️ GPS failed, continuing without location:", err);
       }
 
+      console.log("=".repeat(60));
+      console.log("🌐 [processAttendance] === PREPARING PAYLOAD ===");
+      console.log("=".repeat(60));
       console.log("🌐 [processAttendance] Payload:", {
         qr_data: qrText,
         role_type: roleType,
         lat: location.latitude ?? undefined,
         lng: location.longitude ?? undefined,
         accuracy: location.accuracy ?? undefined,
-        photo: photo ? { name: photo.name, size: photo.size, type: photo.type } : null
+        photo: photo ? { 
+          name: photo.name, 
+          size: photo.size, 
+          type: photo.type,
+          lastModified: new Date(photo.lastModified).toISOString()
+        } : null
       });
+      
+      // CRITICAL: Verify photo before sending
+      if (photo) {
+        console.log("📸 [processAttendance] Photo verification:");
+        console.log("  - Name:", photo.name);
+        console.log("  - Size:", photo.size, "bytes");
+        console.log("  - Type:", photo.type);
+        console.log("  - Is File:", photo instanceof File);
+        console.log("  - Is Blob:", photo instanceof Blob);
+        
+        if (photo.size === 0) {
+          console.error("❌ ERROR: Photo size is 0 bytes - cannot send!");
+          throw new Error("Foto tidak valid (0 bytes)");
+        }
+        
+        if (photo.size > 10 * 1024 * 1024) { // 10MB
+          console.warn("⚠️ WARNING: Photo is very large:", photo.size, "bytes (>10MB)");
+        }
+        
+        console.log("✅ Photo is valid and ready to send");
+      } else {
+        console.warn("⚠️ No photo provided - attendance will be processed without photo");
+      }
+      
+      console.log("=".repeat(60));
+      console.log("📡 [processAttendance] === SENDING TO BACKEND ===");
+      console.log("=".repeat(60));
+      console.log("📡 Calling scanQRAttendance API with photo...");
       
       const result = await scanQRAttendance({
         qr_data: qrText,
@@ -264,7 +353,49 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
         photo: photo ?? undefined,
       });
       
+      console.log("=".repeat(60));
+      console.log("✅ [processAttendance] === BACKEND RESPONSE RECEIVED ===");
+      console.log("=".repeat(60));
       console.log("✅ [processAttendance] Backend response:", result);
+      
+      // Check if photo was processed
+      if (photo && result) {
+        console.log("=".repeat(60));
+        console.log("📸 [processAttendance] === PHOTO PROCESSING STATUS ===");
+        console.log("=".repeat(60));
+        console.log("📸 Photo sent to backend:");
+        console.log("  - Original filename:", photo.name);
+        console.log("  - Original size:", photo.size, "bytes");
+        console.log("  - Original type:", photo.type);
+        console.log("");
+        console.log("📋 Attendance result:");
+        console.log("  - Action:", result.action);
+        console.log("  - Site:", result.site_name);
+        console.log("  - Attendance ID:", result.attendance_id);
+        console.log("  - Check-in time:", result.checkin_time);
+        console.log("  - Valid location:", result.is_valid_location);
+        
+        // CRITICAL: Check if photo_path is in response (indicates watermark was applied)
+        if (result.photo_path) {
+          console.log("");
+          console.log("✅ WATERMARK STATUS:");
+          console.log("  - Photo saved to:", result.photo_path);
+          console.log("  - ✅ Watermark should have been applied by backend");
+          console.log("  - 📁 Check file at:", result.photo_path);
+          console.log("  - 💡 Verify watermark by opening the saved file");
+        } else {
+          console.log("");
+          console.warn("⚠️ WATERMARK STATUS:");
+          console.warn("  - ⚠️ No photo_path in response");
+          console.warn("  - ⚠️ This might indicate photo was not saved or watermark failed");
+          console.warn("  - 💡 Check backend logs for watermark processing details");
+        }
+        console.log("=".repeat(60));
+      } else if (!photo) {
+        console.log("ℹ️ No photo was sent - attendance processed without photo");
+      }
+      
+      console.log("=".repeat(60));
 
       setLoadingState({ show: false, message: "", progress: 0 });
 
@@ -362,6 +493,11 @@ export function QRAttendancePage({ roleType }: QRAttendancePageProps) {
         style={{ display: "none" }}
         onChange={(e) => {
           const file = e.target.files?.[0] || null;
+          console.log("📸 [File Input onChange] File selected:", file ? {
+            name: file.name,
+            size: file.size,
+            type: file.type
+          } : "null");
           handlePhotoCapture(file);
           // Reset input
           if (fileInputRef.current) {

@@ -1,0 +1,795 @@
+{
+  "menu_items": [
+    "/supervisor/incident/bap",
+    "/supervisor/patrol-activity",
+    "/supervisor/inspectpoints",
+    "/supervisor/announcements",
+    "/supervisor/master/business-unit",
+    "/supervisor/master/job-position",
+    "/supervisor/information/notification",
+    "/supervisor/master/patrol-points",
+    "/supervisor/shifts",
+    "/supervisor/patrol/security",
+    "/supervisor/incident/lk-lp",
+    "/supervisor/attendance/overtime",
+    "/supervisor/reporting/intelligent",
+    "/supervisor/kpi/patrol",
+    "/supervisor/information/cctv",
+    "/supervisor/reporting/visitors",
+    "/supervisor/patrol/schedule",
+    "/supervisor/patrol/assignment",
+    "/supervisor/incident/recap",
+    "/supervisor/training/plan",
+    "/supervisor/admin/users",
+    "/supervisor/admin/audit-logs",
+    "/supervisor/attendance/simple",
+    "/supervisor/attendance/approval",
+    "/supervisor/admin/user-access",
+    "/supervisor/attendance/correction",
+    "/supervisor/master/worker",
+    "/supervisor/admin/translation",
+    "/supervisor/incident/findings",
+    "/supervisor/admin/incident-access",
+    "/supervisor/attendance/leave",
+    "/supervisor/reporting/compliance",
+    "/supervisor/admin/roles",
+    "/supervisor/kpi/training",
+    "/supervisor/attendance/outstation",
+    "/supervisor/information/document",
+    "/supervisor/kpi/report",
+    "/supervisor/master/asset",
+    "/supervisor/sites",
+    "/supervisor",
+    "/supervisor/attendance",
+    "/supervisor/heatmap",
+    "/supervisor/checklist-templates",
+    "/supervisor/reporting/dar",
+    "/supervisor/patrol/joint",
+    "/supervisor/patrol/report",
+    "/supervisor/training/participant",
+    "/supervisor/checklists",
+    "/supervisor/master/cctv-zone",
+    "/supervisor/kpi/cctv",
+    "/supervisor/master/asset-category",
+    "/supervisor/master/department",
+    "/supervisor/reports",
+    "/supervisor/cleaning/dashboard",
+    "/supervisor/incident/stplk",
+    "/supervisor/officers"
+  ],
+  "routes": [
+    "/supervisor/patrol-activity",
+    "/supervisor/announcements",
+    "/supervisor/admin/master-data/zones",
+    "/supervisor/master/business-unit",
+    "/supervisor/information/notification",
+    "/supervisor/master/patrol-points",
+    "/supervisor/shifts",
+    "/supervisor/patrol/security",
+    "/supervisor/attendance/overtime",
+    "/supervisor/incident/lk-lp",
+    "/supervisor/reporting/intelligent",
+    "/supervisor/kta",
+    "/supervisor/reporting/visitors",
+    "/supervisor/patrol/assignment",
+    "/supervisor/admin/master-data/incident-types",
+    "/supervisor/admin/user-access",
+    "/supervisor/intelligence-reports",
+    "/supervisor/admin/translation",
+    "/supervisor/incident/findings",
+    "/supervisor/admin/incident-access",
+    "/supervisor/incidents/perpetrators",
+    "/supervisor/admin/roles",
+    "/supervisor/reporting/dar/new",
+    "/supervisor/master/asset",
+    "/supervisor/sites",
+    "/supervisor/checklist-templates",
+    "/supervisor/patrol/joint",
+    "/supervisor/admin/master-data/visitor-categories",
+    "/supervisor/reporting/visitors/:id",
+    "/supervisor/kpi/cctv",
+    "/supervisor/master/department",
+    "/supervisor/cleaning/dashboard",
+    "/supervisor/reporting/visitors/:id/edit",
+    "/supervisor/admin/roles-old",
+    "/supervisor/master/job-position",
+    "/supervisor/kpi/patrol",
+    "/supervisor/information/cctv",
+    "/supervisor/incident/lk-lp/:id/edit",
+    "/supervisor/attendance/approval",
+    "/supervisor/admin/master-data/other",
+    "/supervisor/admin/employees",
+    "/supervisor/attendance/outstation",
+    "/supervisor/information/document",
+    "/supervisor/manpower",
+    "/supervisor/reporting/dar",
+    "/supervisor/master/asset-category",
+    "/supervisor/reports",
+    "/supervisor/reporting/dar/:id/edit",
+    "/supervisor/incident/bap",
+    "/supervisor/inspectpoints",
+    "/supervisor/control-center",
+    "/supervisor/reporting/visitors/new",
+    "/supervisor/patrol/schedule",
+    "/supervisor/incident/recap",
+    "/supervisor/admin/audit-logs",
+    "/supervisor/admin/users",
+    "/supervisor/training/plan",
+    "/supervisor/attendance/correction",
+    "/supervisor/master/worker",
+    "/supervisor/incident/lk-lp/:id",
+    "/supervisor/*",
+    "/supervisor/admin/master-data/sites",
+    "/supervisor/heatmap",
+    "/supervisor",
+    "/supervisor/patrol/report",
+    "/supervisor/training/participant",
+    "/supervisor/checklists",
+    "/supervisor/master/cctv-zone",
+    "/supervisor/patrol/teams",
+    "/supervisor/admin/master-data/vehicle-types",
+    "/supervisor/intelligence-reports/new",
+    "/supervisor/patrol/targets",
+    "/supervisor/training",
+    "/supervisor/incident/lk-lp/new",
+    "/supervisor/patrol/teams/manage",
+    "/supervisor/attendance/simple",
+    "/supervisor/dashboard",
+    "/supervisor/calendar",
+    "/supervisor/admin/master-data/roles",
+    "/supervisor/reports/:id",
+    "/supervisor/attendance/leave",
+    "/supervisor/reporting/compliance",
+    "/supervisor/kpi/training",
+    "/supervisor/reporting/intelligent/new",
+    "/supervisor/kpi/report",
+    "/supervisor/attendance",
+    "/supervisor/reporting/dar/:id",
+    "/supervisor/admin/master-data",
+    "/supervisor/admin/master-data/status-types",
+    "/supervisor/incident/stplk",
+    "/supervisor/patrol/targets/manage",
+    "/supervisor/officers"
+  ],
+  "navigate_calls": [
+    "/supervisor/incident/bap",
+    "/supervisor/patrol-activity",
+    "/supervisor/training/plan/new",
+    "/supervisor/incident/stplk/new",
+    "/supervisor/reporting/visitors/new",
+    "/supervisor/reporting/dar/${dar.id}",
+    "/supervisor/reporting/visitors/${id}/edit",
+    "/supervisor/incident/bap/${id}/edit",
+    "/supervisor/incident/stplk/${report.id}",
+    "/supervisor/incident/bap/new",
+    "/supervisor/attendance/overtime",
+    "/supervisor/incident/lk-lp",
+    "/supervisor/reporting/visitors/${visitor.id}",
+    "/supervisor/incident/lk-lp/${report.id}",
+    "/supervisor/incident/lk-lp/new",
+    "/supervisor/patrol/schedule/new",
+    "/supervisor/reporting/dar/${dar.id}/edit",
+    "/supervisor/reporting/visitors",
+    "/supervisor/incident/findings/new",
+    "/supervisor/dashboard",
+    "/supervisor/training/participant/new",
+    "/supervisor/patrol/assignment/new",
+    "/supervisor/patrol/schedule/${schedule.id}/assign",
+    "/supervisor/reporting/dar/new",
+    "/supervisor/patrol/assignment/${assignment.id}",
+    "/supervisor/incident/lk-lp/${id}/edit",
+    "/supervisor/sites",
+    "/supervisor/incident/findings/${report.id}",
+    "/supervisor/attendance",
+    "/supervisor/reporting/dar",
+    "/supervisor/patrol/schedule/${schedule.id}/edit",
+    "/supervisor/checklists",
+    "/supervisor/reports",
+    "/supervisor/training/plan/${plan.id}",
+    "/supervisor/incident/bap/${report.id}"
+  ],
+  "issues": {
+    "menu_without_routes": [],
+    "routes_without_pages": [
+      "/supervisor/officers",
+      "/supervisor/attendance/simple",
+      "/supervisor/attendance/correction",
+      "/supervisor/attendance/overtime",
+      "/supervisor/attendance/outstation",
+      "/supervisor/attendance/leave",
+      "/supervisor/attendance/approval",
+      "/supervisor/patrol-activity",
+      "/supervisor/checklists",
+      "/supervisor/checklist-templates",
+      "/supervisor/inspectpoints",
+      "/supervisor/reporting/dar",
+      "/supervisor/reporting/dar/new",
+      "/supervisor/reporting/dar/:id",
+      "/supervisor/reporting/dar/:id/edit",
+      "/supervisor/reporting/visitors",
+      "/supervisor/reporting/visitors/new",
+      "/supervisor/reporting/visitors/:id",
+      "/supervisor/reporting/visitors/:id/edit",
+      "/supervisor/patrol/schedule",
+      "/supervisor/patrol/assignment",
+      "/supervisor/patrol/security",
+      "/supervisor/patrol/joint",
+      "/supervisor/patrol/report",
+      "/supervisor/incident/lk-lp",
+      "/supervisor/incident/lk-lp/new",
+      "/supervisor/incident/lk-lp/:id",
+      "/supervisor/incident/lk-lp/:id/edit",
+      "/supervisor/incident/bap",
+      "/supervisor/incident/stplk",
+      "/supervisor/incident/findings",
+      "/supervisor/incident/recap",
+      "/supervisor/reporting/compliance",
+      "/supervisor/training/plan",
+      "/supervisor/training/participant",
+      "/supervisor/kpi/patrol",
+      "/supervisor/kpi/report",
+      "/supervisor/kpi/cctv",
+      "/supervisor/kpi/training",
+      "/supervisor/master/worker",
+      "/supervisor/master/business-unit",
+      "/supervisor/master/department",
+      "/supervisor/master/patrol-points",
+      "/supervisor/master/job-position",
+      "/supervisor/master/asset",
+      "/supervisor/master/asset-category",
+      "/supervisor/master/cctv-zone",
+      "/supervisor/admin/user-access",
+      "/supervisor/admin/users",
+      "/supervisor/admin/incident-access",
+      "/supervisor/admin/translation",
+      "/supervisor/information/document",
+      "/supervisor/information/cctv",
+      "/supervisor/information/notification",
+      "/supervisor/intelligence-reports",
+      "/supervisor/intelligence-reports/new",
+      "/supervisor/reporting/intelligent",
+      "/supervisor/reporting/intelligent/new",
+      "/supervisor/shifts",
+      "/supervisor/cleaning/dashboard",
+      "/supervisor/admin/roles",
+      "/supervisor/admin/audit-logs",
+      "/supervisor/patrol/targets",
+      "/supervisor/patrol/teams",
+      "/supervisor/control-center",
+      "/supervisor/incidents/perpetrators",
+      "/supervisor/patrol/targets/manage",
+      "/supervisor/patrol/teams/manage",
+      "/supervisor/admin/master-data",
+      "/supervisor/admin/employees",
+      "/supervisor/admin/roles",
+      "/supervisor/admin/roles-old",
+      "/supervisor/admin/audit-logs",
+      "/supervisor/admin/master-data",
+      "/supervisor/admin/master-data/roles",
+      "/supervisor/admin/master-data/sites",
+      "/supervisor/admin/master-data/zones",
+      "/supervisor/admin/master-data/incident-types",
+      "/supervisor/admin/master-data/status-types",
+      "/supervisor/admin/master-data/visitor-categories",
+      "/supervisor/admin/master-data/vehicle-types",
+      "/supervisor/admin/master-data/other",
+      "/supervisor/*"
+    ],
+    "navigate_to_missing": [
+      "/supervisor/training/plan/new",
+      "/supervisor/incident/stplk/new",
+      "/supervisor/reporting/visitors/${id}/edit",
+      "/supervisor/reporting/dar/${dar.id}",
+      "/supervisor/incident/bap/${id}/edit",
+      "/supervisor/incident/stplk/${report.id}",
+      "/supervisor/incident/bap/new",
+      "/supervisor/reporting/visitors/${visitor.id}",
+      "/supervisor/incident/lk-lp/${report.id}",
+      "/supervisor/patrol/schedule/new",
+      "/supervisor/reporting/dar/${dar.id}/edit",
+      "/supervisor/incident/findings/new",
+      "/supervisor/training/participant/new",
+      "/supervisor/patrol/assignment/new",
+      "/supervisor/patrol/schedule/${schedule.id}/assign",
+      "/supervisor/patrol/assignment/${assignment.id}",
+      "/supervisor/incident/lk-lp/${id}/edit",
+      "/supervisor/incident/findings/${report.id}",
+      "/supervisor/patrol/schedule/${schedule.id}/edit",
+      "/supervisor/training/plan/${plan.id}",
+      "/supervisor/incident/bap/${report.id}"
+    ],
+    "missing_forms": []
+  },
+  "navigate_calls_detail": [
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance/overtime",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol-activity",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol-activity",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol-activity",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol-activity",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports?division=SECURITY&report_type=incident&status=open",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports?division=SECURITY&report_type=incident&status=in_review",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports?division=SECURITY&report_type=incident&status=closed",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports?division=SECURITY&report_type=incident&severity=high",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/checklists",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/checklists?status=overdue",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/checklists?status=completed",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/checklists",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance?division=SECURITY",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance?division=CLEANING",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance?division=DRIVER",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/checklists",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/checklists",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol-activity",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports?division=SECURITY&report_type=incident",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports?division=SECURITY&report_type=incident",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/sites",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports?division=SECURITY&report_type=incident",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reports?division=SECURITY&report_type=incident",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/attendance",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\SupervisorDashboardPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/dashboard",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Dashboard\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/bap",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\BAP\\BAPDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/bap",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\BAP\\BAPDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/bap/${id}/edit",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\BAP\\BAPDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/bap",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\BAP\\BAPFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/bap",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\BAP\\BAPFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/bap",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\BAP\\BAPFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/bap/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\BAP\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/bap/${report.id}",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\BAP\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/findings/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\Findings\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/findings/${report.id}",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\Findings\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/lk-lp/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\LKLP\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/lk-lp/${report.id}",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\LKLP\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/lk-lp",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\LKLP\\LKLPDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/lk-lp",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\LKLP\\LKLPDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/lk-lp/${id}/edit",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\LKLP\\LKLPDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/lk-lp",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\LKLP\\LKLPFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/lk-lp",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\LKLP\\LKLPFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/lk-lp",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\LKLP\\LKLPFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/stplk/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\STPLK\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/incident/stplk/${report.id}",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Incident\\STPLK\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol/assignment/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Patrol\\Assignment\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol/assignment/${assignment.id}",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Patrol\\Assignment\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol/schedule/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Patrol\\Schedule\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol/schedule/${schedule.id}/assign",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Patrol\\Schedule\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/patrol/schedule/${schedule.id}/edit",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Patrol\\Schedule\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/dar",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\DAR\\DARDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/dar",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\DAR\\DARDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/dar/${dar.id}/edit",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\DAR\\DARDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/dar",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\DAR\\DARFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/dar",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\DAR\\DARFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/dar",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\DAR\\DARFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/dar/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\DAR\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/dar/${dar.id}",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\DAR\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/dar/${dar.id}/edit",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\DAR\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/visitors/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\Visitors\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/visitors/${visitor.id}",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\Visitors\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/visitors",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\Visitors\\VisitorDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/visitors",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\Visitors\\VisitorDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/visitors/${id}/edit",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\Visitors\\VisitorDetailPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/visitors",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\Visitors\\VisitorFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/visitors",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\Visitors\\VisitorFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/reporting/visitors",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Reporting\\Visitors\\VisitorFormPage.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/training/participant/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Training\\Participant\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/training/plan/new",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Training\\Plan\\index.tsx",
+      "type": "navigate_call"
+    },
+    {
+      "path": "/supervisor/training/plan/${plan.id}",
+      "file": "frontend\\web\\src\\modules\\supervisor\\pages\\Training\\Plan\\index.tsx",
+      "type": "navigate_call"
+    }
+  ]
+}

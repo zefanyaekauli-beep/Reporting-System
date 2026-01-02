@@ -2,11 +2,51 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
+import json
+
+# #region agent log
+try:
+    with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"auth_routes.py:5","message":"Auth routes module import started","data":{"step":"import_start"},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+except: pass
+# #endregion
+
 from app.api.deps import get_current_user, get_db
+
+# #region agent log
+try:
+    with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"auth_routes.py:10","message":"About to import User model","data":{},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+except: pass
+# #endregion
+
 from app.models.user import User
+
+# #region agent log
+try:
+    with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"auth_routes.py:13","message":"User model imported, about to import Company","data":{},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+except: pass
+# #endregion
+
 from app.models.company import Company
+
+# #region agent log
+try:
+    with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"auth_routes.py:16","message":"Company model imported, about to import security functions","data":{},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+except: pass
+# #endregion
+
 from app.core.security import verify_password, create_access_token, get_password_hash
 from app.core.logger import auth_logger
+
+# #region agent log
+try:
+    with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"auth_routes.py:19","message":"All imports successful, creating router","data":{},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+except: pass
+# #endregion
 
 router = APIRouter()
 
@@ -41,186 +81,269 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     
     Security: Logs username and login result, but NEVER logs passwords.
     """
-    # Get client IP for audit trail
-    client_ip = request.client.host if request.client else None
+    # #region agent log
+    try:
+        with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"auth_routes.py:33","message":"Login endpoint called - BEFORE try block","data":{"username":payload.username,"db_type":type(db).__name__,"db_is_none":db is None},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+    except: pass
+    # #endregion
     
-    # Log login attempt (username only, NEVER password)
-    auth_logger.info(
-        f"Login attempt: username={payload.username}",
-        extra={
-            "username": payload.username,
-            "ip_address": client_ip,
-            "event": "login_attempt"
-        }
-    )
+    # Log immediately when endpoint is called (before any try/except)
+    auth_logger.info(f"=== LOGIN ENDPOINT CALLED === Username: {payload.username}, Path: {request.url.path}")
     
-    # Try to find user in database
-    user = db.query(User).filter(User.username == payload.username).first()
-    
-    if user:
-        # User exists - verify password; handle invalid/corrupted hashes gracefully
-        invalid_hash = False
-        password_valid = False
-        
+    try:
+        # #region agent log
         try:
-            # Check if hash is invalid (dummy placeholder or too short)
-            if user.hashed_password == "dummy" or (user.hashed_password and len(user.hashed_password) < 20):
+            with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"auth_routes.py:48","message":"Inside try block, about to query database","data":{"username":payload.username},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+        except: pass
+        # #endregion
+        # Log that endpoint was reached
+        auth_logger.info(f"Login endpoint called for username: {payload.username}")
+        
+        # Get client IP for audit trail
+        client_ip = request.client.host if request.client else None
+        
+        # Log login attempt (username only, NEVER password)
+        auth_logger.info(
+            f"Login attempt: username={payload.username}",
+            extra={
+                "username": payload.username,
+                "ip_address": client_ip,
+                "event": "login_attempt"
+            }
+        )
+        
+        # Try to find user in database
+        # #region agent log
+        try:
+            with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"auth_routes.py:65","message":"About to execute database query","data":{"username":payload.username,"User_model":str(User)},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+        except: pass
+        # #endregion
+        user = db.query(User).filter(User.username == payload.username).first()
+        # #region agent log
+        try:
+            with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"auth_routes.py:67","message":"Database query completed","data":{"user_found":user is not None,"user_id":user.id if user else None},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+        except: pass
+        # #endregion
+        
+        if user:
+            # User exists - verify password; handle invalid/corrupted hashes gracefully
+            invalid_hash = False
+            password_valid = False
+            
+            try:
+                # Check if hash is invalid (dummy placeholder or too short)
+                if user.hashed_password == "dummy" or (user.hashed_password and len(user.hashed_password) < 20):
+                    invalid_hash = True
+                else:
+                    # Try to verify password
+                    password_valid = verify_password(payload.password, user.hashed_password)
+            except Exception as e:
+                # Hash is invalid or corrupted
                 invalid_hash = True
-            else:
-                # Try to verify password
-                password_valid = verify_password(payload.password, user.hashed_password)
-        except Exception as e:
-            # Hash is invalid or corrupted
-            invalid_hash = True
-            auth_logger.warning(
-                f"Invalid password hash for user {payload.username}: {str(e)}",
-                extra={"username": payload.username, "user_id": user.id}
+                auth_logger.warning(
+                    f"Invalid password hash for user {payload.username}: {str(e)}",
+                    extra={"username": payload.username, "user_id": user.id}
+                )
+            
+            # If hash is invalid/placeholder, re-hash with provided password
+            if invalid_hash:
+                new_hash = get_password_hash(payload.password)
+                # Use raw SQL update to avoid FK validation issues
+                from sqlalchemy import text
+                db.execute(
+                    text("UPDATE users SET hashed_password = :hash WHERE id = :user_id"),
+                    {"hash": new_hash, "user_id": user.id}
+                )
+                db.commit()
+                # Refresh user object
+                db.refresh(user)
+                password_valid = True  # Accept the password since we just set it
+                auth_logger.info(
+                    f"Fixed invalid password hash for username={payload.username}",
+                    extra={"username": payload.username, "user_id": user.id, "event": "password_hash_fixed"}
+                )
+            
+            if not password_valid:
+                # Log failed login (invalid password)
+                auth_logger.warning(
+                    f"Login failed: invalid password for username={payload.username}",
+                    extra={
+                        "username": payload.username,
+                        "user_id": user.id,
+                        "ip_address": client_ip,
+                        "event": "login_failed",
+                        "reason": "invalid_password"
+                    }
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Kredensial tidak valid"
+                )
+        else:
+            # Legacy mode: create user on-the-fly for backward compatibility
+            # This should be removed after full migration
+            # Map legacy usernames to roles/divisions
+            legacy_map = {
+                "security": ("security", "FIELD"),
+                "cleaning": ("cleaning", "FIELD"),
+                "parking": ("parking", "FIELD"),
+                "driver": ("driver", "FIELD"),
+                "supervisor": ("security", "SUPERVISOR"),  # Default division
+                "admin": ("security", "ADMIN"),  # Default division
+            }
+            
+            if payload.username not in legacy_map:
+                # Log failed login (user not found)
+                auth_logger.warning(
+                    f"Login failed: user not found username={payload.username}",
+                    extra={
+                        "username": payload.username,
+                        "ip_address": client_ip,
+                        "event": "login_failed",
+                        "reason": "user_not_found"
+                    }
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Kredensial tidak valid"
+                )
+            
+            division, role = legacy_map[payload.username]
+            
+            # Ensure company exists (create if not)
+            company = db.query(Company).filter(Company.id == 1).first()
+            if not company:
+                # Create default company
+                company = Company(
+                    id=1,
+                    name="PT Verolux Security",
+                    code="VEROLUX"
+                )
+                db.add(company)
+                db.commit()
+                db.refresh(company)
+                auth_logger.info(f"Created default company: {company.name}")
+            
+            # Create user with hashed password
+            user = User(
+                username=payload.username,
+                hashed_password=get_password_hash(payload.password),
+                division=division if role == "FIELD" else None,
+                role=role,
+                company_id=company.id,
             )
-        
-        # If hash is invalid/placeholder, re-hash with provided password
-        if invalid_hash:
-            new_hash = get_password_hash(payload.password)
-            # Use raw SQL update to avoid FK validation issues
-            from sqlalchemy import text
-            db.execute(
-                text("UPDATE users SET hashed_password = :hash WHERE id = :user_id"),
-                {"hash": new_hash, "user_id": user.id}
-            )
+            db.add(user)
             db.commit()
-            # Refresh user object
             db.refresh(user)
-            password_valid = True  # Accept the password since we just set it
+            
+            # Log user creation (legacy mode)
             auth_logger.info(
-                f"Fixed invalid password hash for username={payload.username}",
-                extra={"username": payload.username, "user_id": user.id, "event": "password_hash_fixed"}
-            )
-        
-        if not password_valid:
-            # Log failed login (invalid password)
-            auth_logger.warning(
-                f"Login failed: invalid password for username={payload.username}",
+                f"User created (legacy mode): username={payload.username}, role={role}",
                 extra={
                     "username": payload.username,
                     "user_id": user.id,
+                    "role": role,
                     "ip_address": client_ip,
-                    "event": "login_failed",
-                    "reason": "invalid_password"
+                    "event": "user_created_legacy"
                 }
             )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Kredensial tidak valid"
+        
+        # Ensure user has required fields (handle None values from old DB records)
+        if not user.role:
+            # Use raw SQL update to avoid FK validation issues
+            from sqlalchemy import text
+            db.execute(
+                text("UPDATE users SET role = :role WHERE id = :user_id"),
+                {"role": "FIELD", "user_id": user.id}
             )
-    else:
-        # Legacy mode: create user on-the-fly for backward compatibility
-        # This should be removed after full migration
-        # Map legacy usernames to roles/divisions
-        legacy_map = {
-            "security": ("security", "FIELD"),
-            "cleaning": ("cleaning", "FIELD"),
-            "parking": ("parking", "FIELD"),
-            "driver": ("driver", "FIELD"),
-            "supervisor": ("security", "SUPERVISOR"),  # Default division
-            "admin": ("security", "ADMIN"),  # Default division
-        }
+            db.commit()
+            db.refresh(user)
+            user.role = "FIELD"  # Update local object
         
-        if payload.username not in legacy_map:
-            # Log failed login (user not found)
-            auth_logger.warning(
-                f"Login failed: user not found username={payload.username}",
-                extra={
-                    "username": payload.username,
-                    "ip_address": client_ip,
-                    "event": "login_failed",
-                    "reason": "user_not_found"
-                }
-            )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Kredensial tidak valid"
-            )
+        # Normalize role to lowercase safely
+        user_role = (user.role or "field").lower()
+        user_division = user.division.lower() if user.division and isinstance(user.division, str) else None
         
-        division, role = legacy_map[payload.username]
-        
-        # Create user with hashed password
-        user = User(
-            username=payload.username,
-            hashed_password=get_password_hash(payload.password),
-            division=division if role == "FIELD" else None,
-            role=role,
-            company_id=1,  # Default company
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        
-        # Log user creation (legacy mode)
+        # Log successful login (AFTER password verification, before token creation)
         auth_logger.info(
-            f"User created (legacy mode): username={payload.username}, role={role}",
+            f"Login successful: username={payload.username}, user_id={user.id}, role={user_role}",
             extra={
                 "username": payload.username,
                 "user_id": user.id,
-                "role": role,
+                "role": user_role,
+                "division": user.division,
+                "company_id": user.company_id,
                 "ip_address": client_ip,
-                "event": "user_created_legacy"
+                "event": "login_success"
             }
         )
-    
-    # Ensure user has required fields (handle None values from old DB records)
-    if not user.role:
-        # Use raw SQL update to avoid FK validation issues
-        from sqlalchemy import text
-        db.execute(
-            text("UPDATE users SET role = :role WHERE id = :user_id"),
-            {"role": "FIELD", "user_id": user.id}
-        )
-        db.commit()
-        db.refresh(user)
-        user.role = "FIELD"  # Update local object
-    
-    # Normalize role to lowercase safely
-    user_role = (user.role or "field").lower()
-    user_division = user.division.lower() if user.division else None
-    
-    # Log successful login (AFTER password verification, before token creation)
-    auth_logger.info(
-        f"Login successful: username={payload.username}, user_id={user.id}, role={user_role}",
-        extra={
-            "username": payload.username,
-            "user_id": user.id,
+        
+        # Create JWT token
+        token_data = {
+            "sub": str(user.id),  # Subject (user ID)
+            "username": user.username,
             "role": user_role,
-            "division": user.division,
-            "company_id": user.company_id,
-            "ip_address": client_ip,
-            "event": "login_success"
+            "division": user_division,
+            "company_id": user.company_id or 1,  # Default company_id if None
+            "site_id": user.site_id,
         }
-    )
-    
-    # Create JWT token
-    token_data = {
-        "sub": str(user.id),  # Subject (user ID)
-        "username": user.username,
-        "role": user_role,
-        "division": user_division,
-        "company_id": user.company_id or 1,  # Default company_id if None
-        "site_id": user.site_id,
-    }
-    access_token = create_access_token(data=token_data)
-    
-    return LoginResponse(
-        access_token=access_token,
-        token_type="bearer",
-        division=user_division,
-        role=user_role,
-        user=UserInfo(
-            id=user.id,
-            username=user.username,
+        access_token = create_access_token(data=token_data)
+        
+        return LoginResponse(
+            access_token=access_token,
+            token_type="bearer",
             division=user_division,
             role=user_role,
-            company_id=user.company_id or 1,
-            site_id=user.site_id,
-        ),
-    )
+            user=UserInfo(
+                id=user.id,
+                username=user.username,
+                division=user_division,
+                role=user_role,
+                company_id=user.company_id or 1,
+                site_id=user.site_id,
+            ),
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 401 Unauthorized)
+        # #region agent log
+        try:
+            with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"auth_routes.py:245","message":"HTTPException caught, re-raising","data":{},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+        except: pass
+        # #endregion
+        raise
+    except Exception as e:
+        # #region agent log
+        try:
+            with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"auth_routes.py:248","message":"Exception caught in login handler","data":{"error_type":type(e).__name__,"error_msg":str(e)},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+        except: pass
+        # #endregion
+        # Log unexpected errors
+        auth_logger.error(
+            f"Unexpected error during login for username={payload.username}: {str(e)}",
+            exc_info=True,
+            extra={
+                "username": payload.username,
+                "ip_address": request.client.host if request.client else None,
+                "event": "login_error"
+            }
+        )
+        # #region agent log
+        try:
+            with open(r"c:\Users\DELL GAMING\Downloads\kerja\Reporting-System\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"auth_routes.py:260","message":"About to raise HTTPException 500","data":{},"timestamp":int(__import__("time").time()*1000)}) + "\n")
+        except: pass
+        # #endregion
+        # Return generic error to avoid leaking information
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal error occurred. Please try again later."
+        )
 
 @router.get("/me")
 def get_me(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):

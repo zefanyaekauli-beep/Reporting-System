@@ -1,8 +1,6 @@
 // frontend/web/src/modules/supervisor/pages/HeatmapPage.tsx
 
 import React, { useState, useEffect, useMemo } from "react";
-import { HeatmapChart } from "../components/HeatmapChart";
-import HeatmapCanvas from "../components/HeatmapCanvas";
 import { MapView } from "../../shared/components/MapView";
 import {
   getAttendanceHeatmap,
@@ -16,12 +14,17 @@ import {
 import { theme } from "../../shared/components/theme";
 import { listSites, Site } from "../../../api/supervisorApi";
 
+type HeatmapType = "attendance" | "activity" | "site-performance" | "user-activity";
+
+const HEATMAP_TYPES = [
+  { value: "activity", label: "Activity", icon: "📊", color: "#0d9488" },
+  { value: "attendance", label: "Attendance", icon: "👤", color: "#8b5cf6" },
+  { value: "site-performance", label: "Site Performance", icon: "🏢", color: "#f59e0b" },
+  { value: "user-activity", label: "User Activity", icon: "👥", color: "#ef4444" },
+];
+
 export default function HeatmapPage() {
-  console.log("HeatmapPage component rendered");
-  
-  const [heatmapType, setHeatmapType] = useState<
-    "attendance" | "activity" | "site-performance" | "user-activity"
-  >("attendance");
+  const [heatmapType, setHeatmapType] = useState<HeatmapType>("activity");
   const [data, setData] = useState<HeatmapResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -38,8 +41,7 @@ export default function HeatmapPage() {
   const [activityType, setActivityType] = useState<string>("");
 
   const [sites, setSites] = useState<Site[]>([]);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([-6.2088, 106.8456]); // Default Jakarta
-  const [mapZoom, setMapZoom] = useState(13);
+  const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
 
   useEffect(() => {
     loadSites();
@@ -48,57 +50,6 @@ export default function HeatmapPage() {
   useEffect(() => {
     loadHeatmap();
   }, [heatmapType, startDate, endDate, division, siteId, activityType]);
-
-  // Convert heatmap data to map markers (for geographic heatmaps)
-  const mapMarkers = useMemo(() => {
-    if (!data || !data.data || data.data.length === 0) return [];
-    
-    // Only create markers for geographic heatmaps (attendance and activity)
-    if (heatmapType !== "attendance" && heatmapType !== "activity") return [];
-    
-    const minValue = Math.min(...data.data.map(d => d.value));
-    const maxValue = Math.max(...data.data.map(d => d.value));
-    
-    return data.data
-      .filter((point: HeatmapDataPoint) => {
-        // Check if x and y are numeric (coordinates)
-        const xNum = parseFloat(point.x);
-        const yNum = parseFloat(point.y);
-        return !isNaN(xNum) && !isNaN(yNum) && xNum !== 0 && yNum !== 0;
-      })
-      .map((point: HeatmapDataPoint) => {
-        const lat = parseFloat(point.x);
-        const lng = parseFloat(point.y);
-        const value = point.value;
-        
-        // Calculate red intensity based on value
-        const ratio = (value - minValue) / (maxValue - minValue || 1);
-        const r = Math.floor(255 - (ratio * 100)); // 255 to 155
-        const g = Math.floor(200 - (ratio * 200)); // 200 to 0
-        const b = Math.floor(200 - (ratio * 200)); // 200 to 0
-        const color = `rgb(${r}, ${g}, ${b})`;
-        
-        return {
-          id: `${lat}-${lng}`,
-          position: [lat, lng] as [number, number],
-          label: point.label || `${value} ${data.value_label}`,
-          color: color,
-          value: value,
-        };
-      });
-  }, [data, heatmapType]);
-
-  // Update map center when markers change
-  useEffect(() => {
-    if (mapMarkers.length > 0) {
-      const lats = mapMarkers.map(m => m.position[0]);
-      const lngs = mapMarkers.map(m => m.position[1]);
-      const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-      const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-      setMapCenter([centerLat, centerLng]);
-      setMapZoom(13);
-    }
-  }, [mapMarkers]);
 
   const loadSites = async () => {
     try {
@@ -112,22 +63,16 @@ export default function HeatmapPage() {
   const loadHeatmap = async () => {
     setLoading(true);
     setError("");
-    setData(null); // Clear previous data
     try {
       const params: HeatmapParams = {
         start_date: startDate,
         end_date: endDate,
       };
-
       if (division) params.division = division;
       if (siteId) params.site_id = siteId;
       if (activityType) params.activity_type = activityType;
 
-      console.log("Loading heatmap with params:", params);
-      console.log("Heatmap type:", heatmapType);
-
       let response: HeatmapResponse;
-
       switch (heatmapType) {
         case "attendance":
           response = await getAttendanceHeatmap(params);
@@ -142,449 +87,714 @@ export default function HeatmapPage() {
           response = await getUserActivityHeatmap(params);
           break;
         default:
-          response = await getAttendanceHeatmap(params);
+          response = await getActivityHeatmap(params);
       }
 
-      console.log("Heatmap response:", response);
-      console.log("Heatmap data points:", response.data);
-      console.log("Data length:", response.data?.length);
-      console.log("Is array?", Array.isArray(response.data));
-      
-      if (response && response.data) {
-        console.log("First data point:", response.data[0]);
-      }
-      
       setData(response);
     } catch (err: any) {
-      console.error("Failed to load heatmap:", err);
-      console.error("Error details:", err.response?.data || err.message);
       setError(err.message || "Failed to load heatmap data");
-      setData(null);
+      console.error("Heatmap load error:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  const getColorByValue = (value: number, min: number, max: number): string => {
+    if (max === min) return "#0d9488";
+    const ratio = (value - min) / (max - min);
+    if (ratio < 0.25) return "#06b6d4";
+    if (ratio < 0.5) return "#0d9488";
+    if (ratio < 0.75) return "#f59e0b";
+    return "#ef4444";
+  };
+
+  const getSizeByValue = (value: number, min: number, max: number): number => {
+    if (max === min) return 16;
+    const ratio = (value - min) / (max - min);
+    return 12 + ratio * 16;
+  };
+
+  const mapMarkers = useMemo(() => {
+    if (!data || !data.data || data.data.length === 0) return [];
+    
+    const minValue = Math.min(...data.data.map(d => d.value));
+    const maxValue = Math.max(...data.data.map(d => d.value));
+    
+    const validatedPoints = data.data.filter((point: HeatmapDataPoint) => {
+        const xNum = parseFloat(point.x);
+        const yNum = parseFloat(point.y);
+      if (isNaN(xNum) || isNaN(yNum) || xNum === 0 || yNum === 0) return false;
+      if (xNum < -11 || xNum > 6 || yNum < 95 || yNum > 141) return false;
+      return true;
+    });
+
+    if (validatedPoints.length === 0) return [];
+
+    const typeConfig = HEATMAP_TYPES.find(t => t.value === heatmapType);
+
+    return validatedPoints.map((point: HeatmapDataPoint) => {
+        const lat = parseFloat(point.x);
+        const lng = parseFloat(point.y);
+        const value = point.value;
+        
+        return {
+          id: `${lat}-${lng}-${point.label || ''}`,
+          position: [lat, lng] as [number, number],
+        color: getColorByValue(value, minValue, maxValue),
+        value: value,
+        size: getSizeByValue(value, minValue, maxValue),
+        metadata: {
+          title: `${typeConfig?.icon || '📍'} ${point.label || 'Location'}`,
+          value: value,
+          valueLabel: data.value_label || 'Activities',
+          timestamp: point.timestamp,
+          location: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+          activity: typeConfig?.label || 'Activity',
+        }
+        };
+      });
+  }, [data, heatmapType]);
+
+  const computedMapCenter = useMemo((): [number, number] => {
+    if (mapMarkers.length === 0) return [-6.2088, 106.8456];
+      const lats = mapMarkers.map(m => m.position[0]);
+      const lngs = mapMarkers.map(m => m.position[1]);
+    return [
+      (Math.min(...lats) + Math.max(...lats)) / 2,
+      (Math.min(...lngs) + Math.max(...lngs)) / 2
+    ];
+  }, [mapMarkers]);
+
+  const stats = useMemo(() => {
+    if (!data || !data.data) return null;
+    const values = data.data.map(d => d.value);
+    return {
+      total: Math.round(values.reduce((a, b) => a + b, 0)),
+      average: values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0,
+      max: Math.round(Math.max(...values, 0)),
+      min: Math.round(Math.min(...values, 0)),
+      locations: data.data.length,
+      validLocations: mapMarkers.length,
+    };
+  }, [data, mapMarkers]);
+
+  const currentTypeConfig = HEATMAP_TYPES.find(t => t.value === heatmapType);
+
   return (
-    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "24px", fontWeight: 700, marginBottom: "24px" }}>
-        Activity Heatmap
-      </h1>
-        <p
-          style={{
-            fontSize: "14px",
-            color: theme.colors.textMuted,
-            marginBottom: "24px",
-          }}
-        >
-          Visualize activity patterns, attendance trends, and performance metrics
-          across time, locations, and divisions.
-        </p>
-
-        {/* Controls */}
-        <div
-          style={{
-            backgroundColor: theme.colors.surface,
-            padding: "20px",
-            borderRadius: "8px",
-            marginBottom: "24px",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "16px",
-            alignItems: "flex-end",
-          }}
-        >
-          {/* Heatmap Type */}
-          <div style={{ flex: "1 1 200px" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: "12px",
-                fontWeight: 600,
-                marginBottom: "4px",
-                color: theme.colors.textMain,
-              }}
-            >
-              Heatmap Type
-            </label>
-            <select
-              value={heatmapType}
-              onChange={(e) =>
-                setHeatmapType(
-                  e.target.value as
-                    | "attendance"
-                    | "activity"
-                    | "site-performance"
-                    | "user-activity"
-                )
-              }
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: "6px",
-                border: `1px solid ${theme.colors.border}`,
-                fontSize: "14px",
-                backgroundColor: theme.colors.background,
-                color: theme.colors.textMain,
-              }}
-            >
-              <option value="attendance">Attendance Heatmap</option>
-              <option value="activity">Activity Heatmap</option>
-              <option value="site-performance">Site Performance</option>
-              <option value="user-activity">User Activity</option>
-            </select>
+    <div style={styles.container}>
+      {/* Header */}
+      <div style={styles.header}>
+        <div style={styles.headerContent}>
+          <div style={styles.headerIcon}>🗺️</div>
+          <div>
+        <h1 style={styles.title}>Activity Heatmap</h1>
+            <p style={styles.subtitle}>Real-time visualization of field activities across all locations</p>
           </div>
+        </div>
+        <div style={styles.headerBadge}>
+          <span style={styles.badgeDot}></span>
+          Live Data
+        </div>
+      </div>
 
-          {/* Date Range */}
-          <div style={{ flex: "1 1 150px" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: "12px",
-                fontWeight: 600,
-                marginBottom: "4px",
-                color: theme.colors.textMain,
-              }}
-            >
-              Start Date
-            </label>
+      {/* Heatmap Type Selector */}
+      <div style={styles.typeSelector}>
+        {HEATMAP_TYPES.map((type) => (
+          <button
+            key={type.value}
+            onClick={() => setHeatmapType(type.value as HeatmapType)}
+            style={{
+              ...styles.typeButton,
+              background: heatmapType === type.value ? `linear-gradient(135deg, ${type.color}15, ${type.color}08)` : "white",
+              borderColor: heatmapType === type.value ? type.color : "#e5e7eb",
+              color: heatmapType === type.value ? type.color : "#6b7280",
+            }}
+          >
+            <span style={styles.typeIcon}>{type.icon}</span>
+            <span style={styles.typeLabel}>{type.label}</span>
+            {heatmapType === type.value && <span style={{...styles.typeIndicator, background: type.color}}></span>}
+          </button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div style={styles.filtersCard}>
+        <div style={styles.filtersHeader}>
+          <span style={styles.filtersIcon}>⚙️</span>
+          <span style={styles.filtersTitle}>Filters</span>
+        </div>
+        <div style={styles.filtersGrid}>
+          <div style={styles.filterGroup}>
+            <label style={styles.label}>Start Date</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: "6px",
-                border: `1px solid ${theme.colors.border}`,
-                fontSize: "14px",
-                backgroundColor: theme.colors.background,
-                color: theme.colors.textMain,
-              }}
+              style={styles.input}
             />
           </div>
-
-          <div style={{ flex: "1 1 150px" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: "12px",
-                fontWeight: 600,
-                marginBottom: "4px",
-                color: theme.colors.textMain,
-              }}
-            >
-              End Date
-            </label>
+          <div style={styles.filterGroup}>
+            <label style={styles.label}>End Date</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: "6px",
-                border: `1px solid ${theme.colors.border}`,
-                fontSize: "14px",
-                backgroundColor: theme.colors.background,
-                color: theme.colors.textMain,
-              }}
+              style={styles.input}
             />
           </div>
-
-          {/* Division Filter */}
-          {heatmapType !== "site-performance" && (
-            <div style={{ flex: "1 1 150px" }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  marginBottom: "4px",
-                  color: theme.colors.textMain,
-                }}
-              >
-                Division
-              </label>
-              <select
-                value={division}
-                onChange={(e) => setDivision(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: `1px solid ${theme.colors.border}`,
-                  fontSize: "14px",
-                  backgroundColor: theme.colors.background,
-                  color: theme.colors.textMain,
-                }}
-              >
-                <option value="">All Divisions</option>
-                <option value="SECURITY">Security</option>
-                <option value="CLEANING">Cleaning</option>
-                <option value="DRIVER">Driver</option>
-                <option value="PARKING">Parking</option>
-              </select>
-            </div>
-          )}
-
-          {/* Site Filter */}
-          {heatmapType !== "site-performance" && (
-            <div style={{ flex: "1 1 150px" }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  marginBottom: "4px",
-                  color: theme.colors.textMain,
-                }}
-              >
-                Site
-              </label>
-              <select
-                value={siteId || ""}
-                onChange={(e) =>
-                  setSiteId(e.target.value ? parseInt(e.target.value) : undefined)
-                }
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: `1px solid ${theme.colors.border}`,
-                  fontSize: "14px",
-                  backgroundColor: theme.colors.background,
-                  color: theme.colors.textMain,
-                }}
-              >
-                <option value="">All Sites</option>
-                {sites.map((site) => (
-                  <option key={site.id} value={site.id}>
-                    {site.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Activity Type Filter (for activity heatmap) */}
-          {heatmapType === "activity" && (
-            <div style={{ flex: "1 1 150px" }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  marginBottom: "4px",
-                  color: theme.colors.textMain,
-                }}
-              >
-                Activity Type
-              </label>
-              <select
-                value={activityType}
-                onChange={(e) => setActivityType(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: `1px solid ${theme.colors.border}`,
-                  fontSize: "14px",
-                  backgroundColor: theme.colors.background,
-                  color: theme.colors.textMain,
-                }}
-              >
-                <option value="">All Activities</option>
-                <option value="patrol">Patrols</option>
-                <option value="report">Reports</option>
-                <option value="checklist">Checklists</option>
-              </select>
-            </div>
-          )}
-
-          {/* Refresh Button */}
-          <button
-            onClick={loadHeatmap}
-            disabled={loading}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "6px",
-              border: "none",
-              backgroundColor: theme.colors.primary,
-              color: "#fff",
-              fontSize: "14px",
-              fontWeight: 600,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            {loading ? "Loading..." : "Refresh"}
-          </button>
+          <div style={styles.filterGroup}>
+            <label style={styles.label}>Division</label>
+            <select value={division} onChange={(e) => setDivision(e.target.value)} style={styles.select}>
+              <option value="">All Divisions</option>
+              <option value="security">Security</option>
+              <option value="cleaning">Cleaning</option>
+              <option value="driver">Driver</option>
+              <option value="parking">Parking</option>
+            </select>
+          </div>
+          <div style={styles.filterGroup}>
+            <label style={styles.label}>Site</label>
+            <select
+              value={siteId || ""}
+              onChange={(e) => setSiteId(e.target.value ? parseInt(e.target.value) : undefined)}
+              style={styles.select}
+            >
+              <option value="">All Sites</option>
+              {sites.map((site) => (
+                <option key={site.id} value={site.id}>{site.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
+        <button onClick={loadHeatmap} style={styles.refreshButton} disabled={loading}>
+          {loading ? (
+            <>
+              <span className="btn-spinner"></span>
+              Loading...
+            </>
+          ) : (
+            <>🔄 Refresh Data</>
+          )}
+        </button>
+      </div>
 
-        {/* Error Message */}
-        {error && (
-          <div
-            style={{
-              padding: "12px",
-              backgroundColor: "#fee",
-              color: "#c33",
-              borderRadius: "6px",
-              marginBottom: "24px",
-            }}
-          >
-            {error}
+      {/* Stats Cards */}
+      {stats && (
+          <div style={styles.statsGrid}>
+          <div style={{...styles.statCard, borderTop: `4px solid ${currentTypeConfig?.color || '#0d9488'}`}}>
+            <div style={styles.statIcon}>📍</div>
+            <div style={styles.statContent}>
+              <div style={{...styles.statValue, color: currentTypeConfig?.color}}>{stats.validLocations}</div>
+              <div style={styles.statLabel}>Active Locations</div>
+            </div>
+            </div>
+          <div style={{...styles.statCard, borderTop: "4px solid #8b5cf6"}}>
+            <div style={styles.statIcon}>📊</div>
+            <div style={styles.statContent}>
+              <div style={{...styles.statValue, color: "#8b5cf6"}}>{stats.total}</div>
+              <div style={styles.statLabel}>Total Activities</div>
+            </div>
           </div>
-        )}
+          <div style={{...styles.statCard, borderTop: "4px solid #f59e0b"}}>
+            <div style={styles.statIcon}>📈</div>
+            <div style={styles.statContent}>
+              <div style={{...styles.statValue, color: "#f59e0b"}}>{stats.average}</div>
+              <div style={styles.statLabel}>Average / Location</div>
+            </div>
+            </div>
+          <div style={{...styles.statCard, borderTop: "4px solid #ef4444"}}>
+            <div style={styles.statIcon}>🔥</div>
+            <div style={styles.statContent}>
+              <div style={{...styles.statValue, color: "#ef4444"}}>{stats.max}</div>
+              <div style={styles.statLabel}>Peak Activity</div>
+            </div>
+          </div>
+        </div>
+      )}
 
-        {/* Heatmap Chart */}
+      {/* Legend */}
+      <div style={styles.legendCard}>
+        <div style={styles.legendRow}>
+          <div style={styles.legendSection}>
+            <span style={styles.legendTitle}>Intensity Scale</span>
+            <div style={styles.gradientBar}></div>
+            <div style={styles.gradientLabels}>
+            <span>Low</span>
+            <span>Medium</span>
+            <span>High</span>
+          </div>
+          </div>
+          <div style={styles.legendDivider}></div>
+          <div style={styles.legendSection}>
+            <span style={styles.legendTitle}>Marker Size</span>
+            <div style={styles.sizeIndicators}>
+              <div style={styles.sizeItem}>
+                <div style={{...styles.sizeCircle, width: 12, height: 12}}></div>
+                <span>Low</span>
+              </div>
+              <div style={styles.sizeItem}>
+                <div style={{...styles.sizeCircle, width: 20, height: 20}}></div>
+                <span>Medium</span>
+              </div>
+              <div style={styles.sizeItem}>
+                <div style={{...styles.sizeCircle, width: 28, height: 28}}></div>
+                <span>High</span>
+              </div>
+            </div>
+        </div>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div style={styles.errorCard}>
+          <span>⚠️</span>
+          <span>{error}</span>
+          <button onClick={loadHeatmap} style={styles.retryBtn}>Retry</button>
+        </div>
+      )}
+
+      {/* Map */}
+      <div style={styles.mapCard}>
         {loading ? (
-          <div
-            style={{
-              padding: "40px",
-              textAlign: "center",
-              color: theme.colors.textMuted,
-            }}
-          >
-            Loading heatmap data...
+          <div style={styles.loadingState}>
+            <div className="map-loading-spinner"></div>
+            <p>Loading heatmap data...</p>
           </div>
-        ) : data && data.data && Array.isArray(data.data) && data.data.length > 0 ? (
-          <div>
-            <div
-              style={{
-                backgroundColor: theme.colors.surface,
-                padding: "24px",
-                borderRadius: "8px",
-                marginBottom: "24px",
-              }}
-            >
-              {data.date_range && (
-                <div
-                  style={{
-                    marginBottom: "16px",
-                    fontSize: "12px",
-                    color: theme.colors.textMuted,
-                  }}
-                >
-                  Date Range: {data.date_range}
-                </div>
-              )}
-              <div style={{ marginBottom: "8px", fontSize: "12px", color: theme.colors.textMuted }}>
-                Found {data.data.length} data points
-              </div>
-            </div>
-
-            {/* Map View for Geographic Heatmaps */}
-            {(heatmapType === "attendance" || heatmapType === "activity") && mapMarkers.length > 0 && (
-              <div
-                style={{
-                  backgroundColor: theme.colors.surface,
-                  padding: "24px",
-                  borderRadius: "8px",
-                  marginBottom: "24px",
-                }}
-              >
-                <h2 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "16px" }}>
-                  Geographic Heatmap (Red Intensity)
-                </h2>
-                <MapView
-                  center={mapCenter}
-                  zoom={mapZoom}
-                  markers={mapMarkers.map(m => ({
-                    id: m.id,
-                    position: m.position,
-                    label: m.label,
-                    color: m.color,
-                  }))}
-                  height="500px"
-                />
-                <div style={{ marginTop: "12px", fontSize: "12px", color: theme.colors.textMuted }}>
-                  Red intensity indicates activity level. Darker red = higher activity.
-                </div>
-              </div>
-            )}
-
-            {/* Canvas Heatmap View */}
-            <div
-              style={{
-                backgroundColor: theme.colors.surface,
-                padding: "24px",
-                borderRadius: "8px",
-                marginBottom: "24px",
-              }}
-            >
-              <h2 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "16px" }}>
-                Canvas Heatmap (Red Gradient)
-              </h2>
-              <HeatmapCanvas
-                data={data.data}
-                xAxisLabel={data.x_axis_label || "X Axis"}
-                yAxisLabel={data.y_axis_label || "Y Axis"}
-                valueLabel={data.value_label || "Value"}
-                showMap={false}
-                width={800}
-                height={600}
-              />
-            </div>
-
-            {/* Chart View */}
-            <div
-              style={{
-                backgroundColor: theme.colors.surface,
-                padding: "24px",
-                borderRadius: "8px",
-              }}
-            >
-              <h2 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "16px" }}>
-                Grid Heatmap Chart (Red Gradient)
-              </h2>
-              <HeatmapChart
-                data={data.data}
-                xAxisLabel={data.x_axis_label || "X Axis"}
-                yAxisLabel={data.y_axis_label || "Y Axis"}
-                valueLabel={data.value_label || "Value"}
-              />
-            </div>
-          </div>
-        ) : data && data.data && Array.isArray(data.data) && data.data.length === 0 ? (
-          <div
-            style={{
-              padding: "40px",
-              textAlign: "center",
-              color: theme.colors.textMuted,
-            }}
-          >
-            <div style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>
-              No data available
-            </div>
-            <div style={{ fontSize: "12px" }}>
-              No GPS coordinates found for the selected filters.
-              <br />
-              Try adjusting the date range or filters.
-            </div>
+        ) : mapMarkers.length === 0 ? (
+          <div style={styles.emptyState}>
+            <div style={styles.emptyIcon}>🗺️</div>
+            <h3 style={styles.emptyTitle}>No Location Data Available</h3>
+            <p style={styles.emptyText}>
+              {data && data.data && data.data.length > 0
+                ? `Found ${data.data.length} records, but none have valid GPS coordinates.`
+                : "No data found for the selected filters. Try expanding the date range or removing filters."}
+            </p>
+            <button onClick={loadHeatmap} style={styles.emptyBtn}>🔄 Refresh</button>
           </div>
         ) : (
-          <div
-            style={{
-              padding: "40px",
-              textAlign: "center",
-              color: theme.colors.textMuted,
-            }}
-          >
-            <div style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>
-              No data loaded
-            </div>
-            <div style={{ fontSize: "12px" }}>
-              {error || "Please select filters and click Refresh to load data."}
-            </div>
-            {data && (
-              <div style={{ marginTop: "16px", fontSize: "11px", color: theme.colors.textMuted }}>
-                Debug: data = {JSON.stringify(data, null, 2).substring(0, 200)}...
-              </div>
-            )}
-          </div>
+          <MapView
+            key={`map-${heatmapType}-${data?.type || 'none'}-${mapMarkers.length}`}
+            center={computedMapCenter}
+            zoom={12}
+            markers={mapMarkers}
+            height="650px"
+            onMarkerClick={(markerId) => setSelectedMarker(markerId.toString())}
+          />
         )}
+      </div>
     </div>
   );
 }
 
+const styles: Record<string, React.CSSProperties> = {
+  container: {
+    padding: "28px",
+    maxWidth: "1500px",
+    margin: "0 auto",
+    background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
+    minHeight: "100vh",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "28px",
+    padding: "24px 28px",
+    background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+    borderRadius: "20px",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+    border: "1px solid rgba(0,0,0,0.04)",
+  },
+  headerContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: "18px",
+  },
+  headerIcon: {
+    fontSize: "42px",
+    background: "linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)",
+    borderRadius: "16px",
+    width: "70px",
+    height: "70px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 4px 16px rgba(13, 148, 136, 0.25)",
+  },
+  title: {
+    fontSize: "28px",
+    fontWeight: "800",
+    color: "#0f172a",
+    marginBottom: "4px",
+    letterSpacing: "-0.5px",
+  },
+  subtitle: {
+    fontSize: "15px",
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  headerBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 18px",
+    background: "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)",
+    borderRadius: "30px",
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#15803d",
+  },
+  badgeDot: {
+    width: "8px",
+    height: "8px",
+    borderRadius: "50%",
+    background: "#22c55e",
+    animation: "pulse-dot 2s infinite",
+  },
+  typeSelector: {
+    display: "flex",
+    gap: "12px",
+    marginBottom: "24px",
+    overflowX: "auto",
+    paddingBottom: "4px",
+  },
+  typeButton: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "14px 22px",
+    borderRadius: "14px",
+    border: "2px solid",
+    cursor: "pointer",
+    transition: "all 0.25s ease",
+    fontWeight: "600",
+    fontSize: "14px",
+    position: "relative" as const,
+    minWidth: "fit-content",
+  },
+  typeIcon: {
+    fontSize: "20px",
+  },
+  typeLabel: {
+    whiteSpace: "nowrap" as const,
+  },
+  typeIndicator: {
+    position: "absolute" as const,
+    bottom: "-2px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "30px",
+    height: "4px",
+    borderRadius: "4px",
+  },
+  filtersCard: {
+    background: "white",
+    borderRadius: "18px",
+    padding: "24px",
+    marginBottom: "24px",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+    border: "1px solid rgba(0,0,0,0.04)",
+  },
+  filtersHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "18px",
+    paddingBottom: "14px",
+    borderBottom: "1px solid #f1f5f9",
+  },
+  filtersIcon: {
+    fontSize: "20px",
+  },
+  filtersTitle: {
+    fontSize: "16px",
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  filtersGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "16px",
+    marginBottom: "18px",
+  },
+  filterGroup: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "6px",
+  },
+  label: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#64748b",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.5px",
+  },
+  input: {
+    padding: "12px 14px",
+    border: "2px solid #e2e8f0",
+    borderRadius: "10px",
+    fontSize: "14px",
+    transition: "all 0.2s",
+    outline: "none",
+    background: "#f8fafc",
+  },
+  select: {
+    padding: "12px 14px",
+    border: "2px solid #e2e8f0",
+    borderRadius: "10px",
+    fontSize: "14px",
+    background: "#f8fafc",
+    cursor: "pointer",
+    outline: "none",
+  },
+  refreshButton: {
+    padding: "14px 28px",
+    background: "linear-gradient(135deg, #0d9488 0%, #0891b2 100%)",
+    color: "white",
+    border: "none",
+    borderRadius: "12px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    boxShadow: "0 4px 16px rgba(13, 148, 136, 0.3)",
+    transition: "all 0.25s ease",
+  },
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: "18px",
+    marginBottom: "24px",
+  },
+  statCard: {
+    background: "white",
+    borderRadius: "16px",
+    padding: "22px",
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+    border: "1px solid rgba(0,0,0,0.03)",
+  },
+  statIcon: {
+    fontSize: "28px",
+    background: "#f8fafc",
+    borderRadius: "12px",
+    width: "56px",
+    height: "56px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statContent: {},
+  statValue: {
+    fontSize: "30px",
+    fontWeight: "800",
+    marginBottom: "2px",
+  },
+  statLabel: {
+    fontSize: "13px",
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  legendCard: {
+    background: "white",
+    borderRadius: "16px",
+    padding: "20px 24px",
+    marginBottom: "24px",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+    border: "1px solid rgba(0,0,0,0.03)",
+  },
+  legendRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "32px",
+    flexWrap: "wrap" as const,
+  },
+  legendSection: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "10px",
+  },
+  legendTitle: {
+    fontSize: "12px",
+    fontWeight: "700",
+    color: "#64748b",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.5px",
+  },
+  gradientBar: {
+    width: "180px",
+    height: "12px",
+    borderRadius: "6px",
+    background: "linear-gradient(to right, #06b6d4, #0d9488, #f59e0b, #ef4444)",
+  },
+  gradientLabels: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "11px",
+    color: "#94a3b8",
+    fontWeight: "500",
+  },
+  legendDivider: {
+    width: "1px",
+    height: "50px",
+    background: "#e2e8f0",
+  },
+  sizeIndicators: {
+    display: "flex",
+    alignItems: "center",
+    gap: "20px",
+  },
+  sizeItem: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "11px",
+    color: "#94a3b8",
+    fontWeight: "500",
+  },
+  sizeCircle: {
+    borderRadius: "50%",
+    background: "#0d9488",
+    border: "2px solid white",
+    boxShadow: "0 2px 8px rgba(13, 148, 136, 0.3)",
+  },
+  errorCard: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "16px 20px",
+    background: "#fef2f2",
+    border: "1px solid #fecaca",
+    borderRadius: "12px",
+    marginBottom: "24px",
+    color: "#b91c1c",
+    fontSize: "14px",
+  },
+  retryBtn: {
+    marginLeft: "auto",
+    padding: "8px 16px",
+    background: "#ef4444",
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    fontSize: "13px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  mapCard: {
+    background: "white",
+    borderRadius: "20px",
+    padding: "20px",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
+    border: "1px solid rgba(0,0,0,0.04)",
+    minHeight: "650px",
+    overflow: "hidden",
+  },
+  loadingState: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    justifyContent: "center",
+    height: "650px",
+    gap: "20px",
+    color: "#64748b",
+    fontSize: "15px",
+  },
+  emptyState: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    justifyContent: "center",
+    height: "650px",
+    textAlign: "center" as const,
+    gap: "16px",
+  },
+  emptyIcon: {
+    fontSize: "72px",
+    opacity: 0.5,
+  },
+  emptyTitle: {
+    fontSize: "22px",
+    fontWeight: "700",
+    color: "#1e293b",
+    margin: 0,
+  },
+  emptyText: {
+    fontSize: "15px",
+    color: "#64748b",
+    maxWidth: "400px",
+    lineHeight: 1.6,
+    margin: 0,
+  },
+  emptyBtn: {
+    marginTop: "8px",
+    padding: "12px 24px",
+    background: "#0d9488",
+    color: "white",
+    border: "none",
+    borderRadius: "10px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+};
+
+// Add global styles
+if (typeof document !== 'undefined' && !document.getElementById('heatmap-page-v2-styles')) {
+const styleSheet = document.createElement("style");
+  styleSheet.id = 'heatmap-page-v2-styles';
+styleSheet.textContent = `
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.9); }
+    }
+
+    .btn-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .map-loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #0d9488;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+  @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    input:focus, select:focus {
+      border-color: #0d9488 !important;
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1) !important;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(13, 148, 136, 0.35) !important;
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+  }
+`;
+document.head.appendChild(styleSheet);
+}

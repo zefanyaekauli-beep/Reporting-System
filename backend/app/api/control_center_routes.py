@@ -124,13 +124,14 @@ def get_control_center_status(
             open_tickets = open_tickets.filter(DispatchTicket.site_id == site_id)
         total_dispatch_tickets = open_tickets.count()
         
+        from datetime import timezone as tz
         return ControlCenterStatus(
             total_on_duty=total_on_duty,
             total_active_patrols=total_active_patrols,
             total_active_incidents=total_active_incidents,
             total_panic_alerts=total_panic_alerts,
             total_dispatch_tickets=total_dispatch_tickets,
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.now(tz.utc),
         )
         
     except Exception as e:
@@ -193,7 +194,8 @@ def get_active_patrols(
             # Calculate duration
             duration_minutes = None
             if patrol.start_time:
-                duration_seconds = (datetime.utcnow() - patrol.start_time).total_seconds()
+                from datetime import timezone as tz
+                duration_seconds = (datetime.now(tz.utc) - patrol.start_time).total_seconds()
                 duration_minutes = int(duration_seconds / 60)
             
             result.append(ActivePatrol(

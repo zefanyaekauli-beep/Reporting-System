@@ -9,24 +9,26 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     e.stopPropagation();
-    
+
     console.log("=== LOGIN FORM SUBMITTED ===");
     console.log("Username:", username);
     console.log("Password provided:", !!password);
-    
+
     setError(null);
-    
+
     if (!username.trim()) {
       setError("Username tidak boleh kosong");
       return;
     }
-    
+
+    setLoading(true);
     try {
       console.log("Calling login API...");
       const res = await login({ username, password });
@@ -36,13 +38,13 @@ export function LoginPage() {
         division: res?.user?.division,
         role: res?.role,
       });
-      
+
       if (!res || !res.access_token || !res?.user?.division) {
         console.error("❌ Invalid response structure:", res);
         setError("Invalid response from server");
         return;
       }
-      
+
       // Use user info from response if available
       // Ensure division matches Division type
       const divisionMap: Record<string, "security" | "cleaning" | "parking" | "driver"> = {
@@ -54,19 +56,19 @@ export function LoginPage() {
       const division = divisionMap[res.division?.toLowerCase()] || 
                        divisionMap[res.user?.division?.toLowerCase()] || 
                        "security";
-      
+
       const userInfo = {
         id: res.user?.id || 1,
         username: res.user?.username || username,
         division: division,
         role: res.role || res.user?.role || "field",
       };
-      
+
       setAuth({
         token: res.access_token,
         user: userInfo,
       });
-      
+
       // Navigate based on role
       if (res.role === "supervisor" || res.role === "admin") {
         navigate("/supervisor/dashboard");
@@ -97,53 +99,73 @@ export function LoginPage() {
       });
       const errorMessage = err?.response?.data?.detail || err?.message || "Login failed";
       setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Verolux</h1>
-        <p style={styles.subtitle}>Sistem Manajemen</p>
-      </div>
-      <form 
-        onSubmit={handleSubmit} 
-        style={styles.form}
-      >
+    <>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>Verolux</h1>
+          <p style={styles.subtitle}>Sistem Manajemen</p>
+        </div>
+        <form 
+          onSubmit={handleSubmit} 
+          style={styles.form}
+        >
         <div style={styles.inputGroup}>
           <label style={styles.label}>{t("auth.username")}</label>
           <input
-            style={styles.input}
+            style={{ ...styles.input, opacity: loading ? 0.6 : 1 }}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder={t("auth.enterUsername")}
             autoComplete="username"
             required
+            disabled={loading}
           />
         </div>
         <div style={styles.inputGroup}>
           <label style={styles.label}>{t("auth.password")}</label>
           <input
-            style={styles.input}
+            style={{ ...styles.input, opacity: loading ? 0.6 : 1 }}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder={t("auth.enterPassword")}
             autoComplete="current-password"
+            disabled={loading}
           />
         </div>
         {error && <p style={styles.error}>{error}</p>}
         <button 
           type="submit" 
-          style={styles.button}
+          style={{ ...styles.button, opacity: loading ? 0.7 : 1, cursor: loading ? "not-allowed" : "pointer" }}
+          disabled={loading}
         >
-          {t("auth.login")}
+          {loading ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <div style={styles.spinner}></div>
+              <span>Memproses login...</span>
+            </div>
+          ) : (
+            t("auth.login")
+          )}
         </button>
         <p style={styles.demoNote}>
           {t("auth.demoNote")}
         </p>
       </form>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -199,6 +221,7 @@ const styles = {
     borderRadius: "6px",
     boxSizing: "border-box" as const,
     outline: "none",
+    transition: "border-color 0.2s, opacity 0.2s",
   },
   error: {
     color: "#d32f2f",
@@ -217,7 +240,19 @@ const styles = {
     borderRadius: "6px",
     cursor: "pointer",
     marginBottom: "12px",
-    transition: "background-color 0.2s",
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "48px",
+  },
+  spinner: {
+    width: "18px",
+    height: "18px",
+    border: "2px solid rgba(255, 255, 255, 0.3)",
+    borderTop: "2px solid #ffffff",
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
   },
   demoNote: {
     fontSize: "12px",

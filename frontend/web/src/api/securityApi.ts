@@ -334,9 +334,18 @@ export interface Checklist {
   created_at: string;
 }
 
-export async function getTodayChecklist(): Promise<{ data: Checklist }> {
+export async function getTodayChecklist(): Promise<{ data: Checklist | null }> {
+  try {
   const response = await api.get("/security/me/checklist/today");
   return { data: response.data };
+  } catch (error: any) {
+    // 404 is expected when user hasn't checked in yet - return null instead of throwing
+    if (error?.response?.status === 404) {
+      return { data: null };
+    }
+    // Re-throw other errors
+    throw error;
+  }
 }
 
 export async function createChecklistManually(siteId: number): Promise<{ data: Checklist }> {

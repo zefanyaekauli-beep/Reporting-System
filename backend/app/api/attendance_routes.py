@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.attendance import Attendance, AttendanceStatus
@@ -63,8 +63,24 @@ async def checkin(
             detail="Invalid photo format. Use JPEG or PNG."
         )
     
-    # Simpan foto
-    photo_path = save_attendance_photo(photo, prefix="checkin")
+    # Get site and user info for watermark
+    from app.models.site import Site
+    from app.models.user import User
+    site = db.query(Site).filter(Site.id == site_id).first()
+    user = db.query(User).filter(User.id == current_user.get("id")).first()
+    
+    # Simpan foto dengan watermark
+    location_str = f"GPS: {lat:.6f}, {lng:.6f}"
+    photo_path = await save_attendance_photo(
+        photo, 
+        prefix="checkin",
+        location=location_str,
+        site_name=site.name if site else None,
+        user_name=user.username if user else None,
+        lat=lat,
+        lng=lng,
+        additional_info={"Role": role_type_upper, "Accuracy": f"{accuracy}m" if accuracy else None}
+    )
     
     # Buat attendance record
     attendance = Attendance(
@@ -72,7 +88,7 @@ async def checkin(
         site_id=site_id,
         company_id=current_user.get("company_id", 1),
         role_type=role_type_upper,
-        checkin_time=datetime.utcnow(),  # Waktu server, untuk audit
+        checkin_time=datetime.now(timezone.utc),  # Waktu server, untuk audit
         checkin_lat=lat,
         checkin_lng=lng,
         checkin_photo_path=photo_path,
@@ -133,11 +149,27 @@ async def checkout(
             detail="Invalid photo format. Use JPEG or PNG."
         )
     
-    # Simpan foto
-    photo_path = save_attendance_photo(photo, prefix="checkout")
+    # Get site and user info for watermark
+    from app.models.site import Site
+    from app.models.user import User
+    site = db.query(Site).filter(Site.id == attendance.site_id).first()
+    user = db.query(User).filter(User.id == attendance.user_id).first()
+    
+    # Simpan foto dengan watermark
+    location_str = f"GPS: {lat:.6f}, {lng:.6f}"
+    photo_path = await save_attendance_photo(
+        photo,
+        prefix="checkout",
+        location=location_str,
+        site_name=site.name if site else None,
+        user_name=user.username if user else None,
+        lat=lat,
+        lng=lng,
+        additional_info={"Role": attendance.role_type, "Accuracy": f"{accuracy}m" if accuracy else None}
+    )
     
     # Update attendance
-    attendance.checkout_time = datetime.utcnow()
+    attendance.checkout_time = datetime.now(timezone.utc)
     attendance.checkout_lat = lat
     attendance.checkout_lng = lng
     attendance.checkout_photo_path = photo_path
@@ -252,17 +284,31 @@ async def clock_in(
     if site.lat and site.lng:
         is_valid = is_location_within_site_radius(db, site.id, latitude, longitude)
 
+    # Get user info for watermark
+    from app.models.user import User
+    user = db.query(User).filter(User.id == user_id).first()
+
     # Save evidence photo if provided
     photo_path = None
     if evidence and evidence.filename:
         if evidence.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
             raise HTTPException(status_code=400, detail="Invalid photo format. Use JPEG or PNG.")
-        photo_path = save_attendance_photo(evidence, prefix="checkin")
+        location_str = f"GPS: {latitude:.6f}, {longitude:.6f}"
+        photo_path = await save_attendance_photo(
+            evidence,
+            prefix="checkin",
+            location=location_str,
+            site_name=site.name if site else None,
+            user_name=user.username if user else None,
+            lat=latitude,
+            lng=longitude,
+            additional_info={"Role": role_type_upper, "Shift": shift_id, "Accuracy": f"{accuracy}m" if accuracy else None}
+        )
 
     # Parse boolean
     is_late_bool = is_late.lower() == "true"
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     attendance = Attendance(
         user_id=user_id,
@@ -351,7 +397,11 @@ async def scan_qr_attendance(
         .first()
     )
     
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
+    
+    # Get user info for watermark (will be used in photo saving)
+    from app.models.user import User
+    user = db.query(User).filter(User.id == user_id).first()
     
     if open_attendance is None:
         # =========================================================
@@ -364,19 +414,43 @@ async def scan_qr_attendance(
         if lat is not None and lng is not None:
             is_valid = is_location_within_site_radius(db, site.id, lat, lng)
         
+        # Parse boolean fields FIRST (before using them)
+        is_overtime = overtime.lower() == "true" if overtime else False
+        is_backup = backup.lower() == "true" if backup else False
+        
         # Simpan foto (jika ada)
         photo_path = None
         if photo and photo.filename:
+            # Log photo info for debugging
+            print(f"📸 [scan_qr_attendance] Photo received: {photo.filename}, content_type: {photo.content_type}, size: {photo.size if hasattr(photo, 'size') else 'unknown'}")
+            
             if photo.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid photo format. Use JPEG or PNG."
                 )
-            photo_path = save_attendance_photo(photo, prefix="checkin")
-        
-        # Parse boolean fields
-        is_overtime = overtime.lower() == "true" if overtime else False
-        is_backup = backup.lower() == "true" if backup else False
+            
+            location_str = f"GPS: {lat:.6f}, {lng:.6f}" if lat is not None and lng is not None else None
+            
+            # Log before saving
+            print(f"📸 [scan_qr_attendance] About to save photo with watermark:")
+            print(f"   Location: {location_str}")
+            print(f"   Site: {site.name if site else None}")
+            print(f"   User: {user.username if user else None}")
+            print(f"   Lat: {lat}, Lng: {lng}")
+            
+            photo_path = await save_attendance_photo(
+                photo,
+                prefix="checkin",
+                location=location_str,
+                site_name=site.name if site else None,
+                user_name=user.username if user else None,
+                lat=lat,
+                lng=lng,
+                additional_info={"Role": role_type_upper, "Shift": shift, "Overtime": "Yes" if is_overtime else "No", "Backup": "Yes" if is_backup else "No"}
+            )
+            
+            print(f"✅ [scan_qr_attendance] Photo saved with watermark to: {photo_path}")
         
         attendance = Attendance(
             user_id=user_id,
@@ -413,6 +487,7 @@ async def scan_qr_attendance(
             "site_name": site.name,
             "checkin_time": attendance.checkin_time.isoformat(),
             "is_valid_location": is_valid,
+            "photo_path": photo_path,  # Include photo path to verify watermark was applied
             "message": f"Clocked IN at {site.name}",
         }
     else:
@@ -428,7 +503,22 @@ async def scan_qr_attendance(
         
         # Simpan foto (jika ada)
         if photo and photo.filename:
-            photo_path = save_attendance_photo(photo, prefix="checkout")
+            # Get user and site info for watermark
+            from app.models.user import User
+            user = db.query(User).filter(User.id == user_id).first()
+            site = db.query(Site).filter(Site.id == open_attendance.site_id).first()
+            
+            location_str = f"GPS: {lat:.6f}, {lng:.6f}" if lat is not None and lng is not None else None
+            photo_path = await save_attendance_photo(
+                photo,
+                prefix="checkout",
+                location=location_str,
+                site_name=site.name if site else None,
+                user_name=user.username if user else None,
+                lat=lat,
+                lng=lng,
+                additional_info={"Role": open_attendance.role_type, "Accuracy": f"{accuracy}m" if accuracy else None}
+            )
             open_attendance.checkout_photo_path = photo_path
         
         # Update attendance
@@ -457,6 +547,7 @@ async def scan_qr_attendance(
             "checkin_time": open_attendance.checkin_time.isoformat(),
             "checkout_time": open_attendance.checkout_time.isoformat(),
             "is_valid_location": is_valid,
+            "photo_path": photo_path,  # Include photo path to verify watermark was applied
             "message": f"Clocked OUT at {site.name}",
         }
 @router.get("/my")
@@ -496,6 +587,9 @@ async def list_my_attendance(
             "checkout_lng": att.checkout_lng,
             "status": att.status.value if hasattr(att.status, "value") else str(att.status),
             "is_valid_location": att.is_valid_location,
+            "shift": att.shift,
+            "is_overtime": att.is_overtime,
+            "is_backup": att.is_backup,
         })
     
     return result

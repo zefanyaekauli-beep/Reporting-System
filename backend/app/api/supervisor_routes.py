@@ -1685,10 +1685,16 @@ def list_checklists(
     except Exception as log_err: 
         log_path = None
     # #endregion
+    
+    # Log incoming request parameters for debugging
+    api_logger.info(f"list_checklists called with params: date={date}, site_id={site_id}, division={division}, context_type={context_type}, status={status}, search={search}, page={pagination.page}, limit={pagination.limit}")
+    
     try:
         from app.divisions.security.models import Checklist, ChecklistTemplate, ChecklistItem, ChecklistStatus, ChecklistItemStatus
         from app.divisions.cleaning.models import CleaningZone
         from app.divisions.driver.models import Vehicle
+        
+        api_logger.info("Successfully imported checklist models")
         
         company_id_filter = company_id or _.get("company_id", 1)
         
@@ -1709,26 +1715,32 @@ def list_checklists(
         )
         
         # Build base query
+        api_logger.info(f"Building query with company_id={company_id_filter}")
         q = db.query(Checklist).filter(Checklist.company_id == company_id_filter)
         
         if date:
+            api_logger.info(f"Filtering by date: {date}")
             q = q.filter(Checklist.shift_date == date)
         
         if site_id:
+            api_logger.info(f"Filtering by site_id: {site_id}")
             q = q.filter(Checklist.site_id == site_id)
         
         if division:
+            api_logger.info(f"Filtering by division: {division}")
             q = q.filter(Checklist.division == division.upper())
         
         if context_type:
+            api_logger.info(f"Filtering by context_type: {context_type}")
             q = q.filter(Checklist.context_type == context_type.upper())
         
         if status:
             try:
                 status_enum = ChecklistStatus[status.upper()]
+                api_logger.info(f"Filtering by status: {status_enum}")
                 q = q.filter(Checklist.status == status_enum)
-            except (KeyError, AttributeError):
-                pass
+            except (KeyError, AttributeError) as se:
+                api_logger.warning(f"Invalid status value '{status}': {se}")
         
         # Apply search filter - search in template name, site name, user name, division, context type
         if search and search.strip():
@@ -1786,7 +1798,14 @@ def list_checklists(
             except: pass
             # #endregion
         
-        total = q.count()
+        # Execute count query
+        api_logger.info("Executing count query...")
+        try:
+            total = q.count()
+            api_logger.info(f"Query count result: {total} total records")
+        except Exception as count_err:
+            api_logger.error(f"Error executing count query: {str(count_err)}", exc_info=True)
+            raise
         
         # #region agent log
         try:
@@ -1796,12 +1815,19 @@ def list_checklists(
         except: pass
         # #endregion
         
-        records = (
-            q.order_by(Checklist.shift_date.desc(), Checklist.created_at.desc())
-            .offset(pagination.offset)
-            .limit(pagination.limit)
-            .all()
-        )
+        # Fetch records
+        api_logger.info(f"Fetching records (offset={pagination.offset}, limit={pagination.limit})...")
+        try:
+            records = (
+                q.order_by(Checklist.shift_date.desc(), Checklist.created_at.desc())
+                .offset(pagination.offset)
+                .limit(pagination.limit)
+                .all()
+            )
+            api_logger.info(f"Successfully fetched {len(records)} records")
+        except Exception as fetch_err:
+            api_logger.error(f"Error fetching records: {str(fetch_err)}", exc_info=True)
+            raise
         
         # #region agent log
         try:
@@ -1811,114 +1837,162 @@ def list_checklists(
         except: pass
         # #endregion
         
+        # Collect IDs for batch loading
+        api_logger.info("Collecting IDs for batch loading related entities...")
         template_ids = list(set([c.template_id for c in records if c.template_id]))
         user_ids = list(set([c.user_id for c in records]))
         site_ids = list(set([c.site_id for c in records]))
         context_ids = list(set([c.context_id for c in records if c.context_id]))
+        api_logger.info(f"Collected IDs - templates: {len(template_ids)}, users: {len(user_ids)}, sites: {len(site_ids)}, contexts: {len(context_ids)}")
         
-        templates = {t.id: t for t in db.query(ChecklistTemplate).filter(ChecklistTemplate.id.in_(template_ids)).all()} if template_ids else {}
-        users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
-        sites = {s.id: s for s in db.query(Site).filter(Site.id.in_(site_ids)).all()} if site_ids else {}
+        # Batch load related entities
+        api_logger.info("Loading templates, users, and sites...")
+        try:
+            templates = {t.id: t for t in db.query(ChecklistTemplate).filter(ChecklistTemplate.id.in_(template_ids)).all()} if template_ids else {}
+            users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
+            sites = {s.id: s for s in db.query(Site).filter(Site.id.in_(site_ids)).all()} if site_ids else {}
+            api_logger.info(f"Loaded {len(templates)} templates, {len(users)} users, {len(sites)} sites")
+        except Exception as load_err:
+            api_logger.error(f"Error loading related entities: {str(load_err)}", exc_info=True)
+            raise
         
         zones = {}
         vehicles = {}
         if context_ids:
+            api_logger.info("Loading context-specific entities (zones, vehicles)...")
             cleaning_checklists = [c for c in records if c.context_type == "CLEANING_ZONE" and c.context_id]
             if cleaning_checklists:
                 zone_ids = [c.context_id for c in cleaning_checklists]
-                zones = {z.id: z for z in db.query(CleaningZone).filter(CleaningZone.id.in_(zone_ids)).all()}
+                try:
+                    zones = {z.id: z for z in db.query(CleaningZone).filter(CleaningZone.id.in_(zone_ids)).all()}
+                    api_logger.info(f"Loaded {len(zones)} cleaning zones")
+                except Exception as zone_err:
+                    api_logger.error(f"Error loading cleaning zones: {str(zone_err)}", exc_info=True)
+                    raise
             
             driver_checklists = [c for c in records if c.context_type in ["DRIVER_PRE_TRIP", "DRIVER_POST_TRIP"] and c.context_id]
             if driver_checklists:
                 pass
         
+        # Build results
+        api_logger.info("Building results from checklist records...")
         results = []
-        for checklist in records:
-            template = templates.get(checklist.template_id) if checklist.template_id else None
-            user = users.get(checklist.user_id)
-            site = sites.get(checklist.site_id)
-            
-            items = db.query(ChecklistItem).filter(ChecklistItem.checklist_id == checklist.id).all()
-            total_items = len(items)
-            # Handle status - could be enum or string
-            completed_items = 0
-            for item in items:
-                try:
-                    # Handle enum status properly
-                    if isinstance(item.status, ChecklistItemStatus):
-                        status_value = item.status.value
-                    elif hasattr(item.status, 'value'):
-                        status_value = item.status.value
-                    else:
-                        status_value = str(item.status)
-                    
-                    if status_value == "COMPLETED" or status_value == ChecklistItemStatus.COMPLETED:
-                        completed_items += 1
-                except Exception:
-                    pass
-            completion_percent = (completed_items / total_items * 100) if total_items > 0 else 0.0
-            
-            evidence_available = any(
-                (getattr(item, 'photo_id', None) or getattr(item, 'photo_path', None) or getattr(item, 'notes', None) or getattr(item, 'note', None))
-                for item in items
-            )
-            
-            zone_or_vehicle = None
-            if checklist.context_type == "CLEANING_ZONE" and checklist.context_id:
-                zone = zones.get(checklist.context_id)
-                zone_or_vehicle = zone.name if zone else f"Zone #{checklist.context_id}"
-            elif checklist.context_type in ["DRIVER_PRE_TRIP", "DRIVER_POST_TRIP"]:
-                zone_or_vehicle = f"Vehicle/Trip #{checklist.context_id}" if checklist.context_id else None
-            
-            # Handle datetime conversion safely
-            start_time_str = None
-            if checklist.created_at:
-                try:
-                    start_time_str = checklist.created_at.isoformat() if hasattr(checklist.created_at, 'isoformat') else str(checklist.created_at)
-                except:
-                    start_time_str = str(checklist.created_at) if checklist.created_at else None
-            
-            completed_time_str = None
-            if checklist.completed_at:
-                try:
-                    completed_time_str = checklist.completed_at.isoformat() if hasattr(checklist.completed_at, 'isoformat') else str(checklist.completed_at)
-                except:
-                    completed_time_str = str(checklist.completed_at) if checklist.completed_at else None
-            
-            # Handle status safely
-            status_str = None
+        for idx, checklist in enumerate(records):
             try:
-                if isinstance(checklist.status, ChecklistStatus):
-                    status_str = checklist.status.value
-                elif hasattr(checklist.status, 'value'):
-                    status_str = checklist.status.value
-                else:
-                    status_str = str(checklist.status)
-            except:
-                status_str = str(checklist.status) if checklist.status else "UNKNOWN"
-            
-            results.append(ChecklistTaskOut(
-                id=checklist.id,
-                template_name=template.name if template else "Untitled Checklist",
-                division=checklist.division,
-                context_type=checklist.context_type,
-                site_name=site.name if site else "Unknown",
-                zone_or_vehicle=zone_or_vehicle,
-                assigned_user_name=user.username if user else f"User #{checklist.user_id}",
-                start_time=start_time_str,
-                completed_time=completed_time_str,
-                completion_percent=round(completion_percent, 1),
-                evidence_available=evidence_available,
-                status=status_str,
-            ))
+                template = templates.get(checklist.template_id) if checklist.template_id else None
+                user = users.get(checklist.user_id)
+                site = sites.get(checklist.site_id)
+                
+                items = db.query(ChecklistItem).filter(ChecklistItem.checklist_id == checklist.id).all()
+                total_items = len(items)
+                # Handle status - could be enum or string
+                completed_items = 0
+                for item in items:
+                    try:
+                        # Handle enum status properly
+                        if isinstance(item.status, ChecklistItemStatus):
+                            status_value = item.status.value
+                        elif hasattr(item.status, 'value'):
+                            status_value = item.status.value
+                        else:
+                            status_value = str(item.status)
+                        
+                        if status_value == "COMPLETED" or status_value == ChecklistItemStatus.COMPLETED:
+                            completed_items += 1
+                    except Exception:
+                        pass
+                completion_percent = (completed_items / total_items * 100) if total_items > 0 else 0.0
+                
+                evidence_available = any(
+                    (getattr(item, 'photo_id', None) or getattr(item, 'photo_path', None) or getattr(item, 'notes', None) or getattr(item, 'note', None))
+                    for item in items
+                )
+                
+                zone_or_vehicle = None
+                if checklist.context_type == "CLEANING_ZONE" and checklist.context_id:
+                    zone = zones.get(checklist.context_id)
+                    zone_or_vehicle = zone.name if zone else f"Zone #{checklist.context_id}"
+                elif checklist.context_type in ["DRIVER_PRE_TRIP", "DRIVER_POST_TRIP"]:
+                    zone_or_vehicle = f"Vehicle/Trip #{checklist.context_id}" if checklist.context_id else None
+                
+                # Handle datetime conversion safely
+                start_time_str = None
+                if checklist.created_at:
+                    try:
+                        start_time_str = checklist.created_at.isoformat() if hasattr(checklist.created_at, 'isoformat') else str(checklist.created_at)
+                    except:
+                        start_time_str = str(checklist.created_at) if checklist.created_at else None
+                
+                completed_time_str = None
+                if checklist.completed_at:
+                    try:
+                        completed_time_str = checklist.completed_at.isoformat() if hasattr(checklist.completed_at, 'isoformat') else str(checklist.completed_at)
+                    except:
+                        completed_time_str = str(checklist.completed_at) if checklist.completed_at else None
+                
+                # Handle status safely
+                status_str = None
+                try:
+                    if isinstance(checklist.status, ChecklistStatus):
+                        status_str = checklist.status.value
+                    elif hasattr(checklist.status, 'value'):
+                        status_str = checklist.status.value
+                    else:
+                        status_str = str(checklist.status)
+                except:
+                    status_str = str(checklist.status) if checklist.status else "UNKNOWN"
+                
+                results.append(ChecklistTaskOut(
+                    id=checklist.id,
+                    template_name=template.name if template else "Untitled Checklist",
+                    division=checklist.division,
+                    context_type=checklist.context_type,
+                    site_name=site.name if site else "Unknown",
+                    zone_or_vehicle=zone_or_vehicle,
+                    assigned_user_name=user.username if user else f"User #{checklist.user_id}",
+                    start_time=start_time_str,
+                    completed_time=completed_time_str,
+                    completion_percent=round(completion_percent, 1),
+                    evidence_available=evidence_available,
+                    status=status_str,
+                ))
+            except Exception as item_err:
+                api_logger.error(f"Error processing checklist {checklist.id} (index {idx}): {str(item_err)}", exc_info=True)
+                # Continue with next record instead of failing the entire request
+                continue
         
         api_logger.info(f"Retrieved {len(results)} checklist records (total: {total})")
         
-        return create_paginated_response(results, total, pagination)
+        # Create paginated response
+        try:
+            response = create_paginated_response(results, total, pagination)
+            api_logger.info(f"Successfully created paginated response with {len(response.items)} items")
+            return response
+        except Exception as page_err:
+            api_logger.error(f"Error creating paginated response: {str(page_err)}", exc_info=True)
+            raise
         
+    except ImportError as ie:
+        api_logger.error(f"Import error in list_checklists: {str(ie)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to import required models: {str(ie)}"
+        )
+    except ValueError as ve:
+        api_logger.error(f"Value error in list_checklists: {str(ve)}", exc_info=True)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid parameter value: {str(ve)}"
+        )
     except Exception as e:
-        api_logger.error(f"Error fetching checklists: {str(e)}", exc_info=True)
-        raise handle_exception(e, api_logger, "list_checklists")
+        api_logger.error(f"Unexpected error fetching checklists: {str(e)}", exc_info=True)
+        # Log the full traceback
+        import traceback
+        api_logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while fetching checklists: {str(e)}"
+        )
 
 # ========== Dashboard Enhancements ==========
 

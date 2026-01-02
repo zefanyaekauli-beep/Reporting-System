@@ -1,17 +1,17 @@
 /**
  * Verolux Design System
  * White & Blue Theme
- * Background: #FFFFF0 (ivory/cream)
+ * Background: #F8FAFC (slate-50 - light gray)
  * Card/Sub: #002B4B (dark blue)
  */
 
 export const designSystem = {
   colors: {
-    // Backgrounds - Custom ivory/cream
+    // Backgrounds - Light gray theme
     background: {
-      primary: "bg-[#FFFFF0]",
-      secondary: "bg-[#FFFFF0]",
-      surface: "bg-[#FFFFF0]",
+      primary: "bg-slate-50",
+      secondary: "bg-slate-50",
+      surface: "bg-slate-50",
       card: "bg-white",
     },
     // Borders

@@ -3,12 +3,12 @@
 /* Verolux Theme - White & Blue */
 html {
   color-scheme: light;
-  background-color: #FFFFF0;
+  background-color: #F8FAFC;
 }
 
 body {
   @apply antialiased;
-  background-color: #FFFFF0;
+  background-color: #F8FAFC;
 }
 
 /* Smooth scrolling */

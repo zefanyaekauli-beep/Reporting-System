@@ -20,8 +20,11 @@ from .gps_track import GPSTrack
 from .master_data import MasterData
 from .cctv import CCTV
 from .inspect_point import InspectPoint
+from .asset import Asset
 from .leave_request import LeaveRequest
 from .attendance_correction import AttendanceCorrection
+from .dar import DailyActivityReport as DARReport, DARPersonnel, DARActivity
+from .joint_patrol import JointPatrol, PatrolReport
 
 # Division-specific models
 from app.divisions.security.models import (
@@ -33,7 +36,8 @@ from app.divisions.security.models import (
     ChecklistItem,
     DispatchTicket,
     PanicAlert,
-    DailyActivityReport,
+    # DailyActivityReport from security models is NOT imported here to avoid conflict
+    # Import directly from app.divisions.security.models if needed
     ShiftHandover,
 )
 
@@ -64,6 +68,7 @@ __all__ = [
     "MasterData",
     "CCTV",
     "InspectPoint",
+    "Asset",
     "LeaveRequest",
     "AttendanceCorrection",
     "SecurityReport",
@@ -74,7 +79,9 @@ __all__ = [
     "ChecklistItem",
     "DispatchTicket",
     "PanicAlert",
-    "DailyActivityReport",
+    # DailyActivityReport from security models not exported to avoid conflict
     "ShiftHandover",
+    "JointPatrol",
+    "PatrolReport",
 ]
 

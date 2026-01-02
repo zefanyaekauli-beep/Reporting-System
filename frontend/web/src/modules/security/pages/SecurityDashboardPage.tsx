@@ -8,7 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { MobileLayout } from "../../shared/components/MobileLayout";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { SiteSelector, SiteOption } from "../../shared/components/SiteSelector";
-import { getTodayAttendance, getTodayChecklist } from "../../../api/securityApi";
+import { getTodayChecklist } from "../../../api/securityApi";
+import { getAttendanceStatus, listMyAttendance } from "../../../api/attendanceApi";
 import { PengumumanCard } from "../../shared/components/PengumumanCard";
 import { DashboardCard } from "../../shared/components/ui/DashboardCard";
 import { IconActionButton } from "../../shared/components/ui/IconActionButton";
@@ -18,13 +19,19 @@ import api from "../../../api/client";
 import { PermissionGate } from "../../../components/PermissionGate";
 import { RoleBasedAccess } from "../../../components/RoleBasedAccess";
 import { UserRoleBadge } from "../../../components/UserRoleBadge";
+import { useAuthStore } from "../../../stores/authStore";
 
 interface Attendance {
   id: number;
   site_id: number;
-  shift_date: string;
-  check_in_time?: string | null;
-  check_out_time?: string | null;
+  site_name?: string;
+  checkin_time: string | null;
+  checkout_time: string | null;
+  status: string;
+  shift: string | null;
+  is_overtime: boolean;
+  is_backup: boolean;
+  is_valid_location: boolean;
 }
 
 interface ReportsSummary {
@@ -36,6 +43,7 @@ interface ReportsSummary {
 export function SecurityDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   const [sites] = useState<SiteOption[]>([
     { id: 1, name: "Situs A" },
@@ -56,8 +64,8 @@ export function SecurityDashboardPage() {
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const hasCheckIn = !!attendance?.check_in_time;
-  const hasCheckOut = !!attendance?.check_out_time;
+  const hasCheckIn = !!attendance?.checkin_time;
+  const hasCheckOut = !!attendance?.checkout_time;
 
   // Get greeting based on time
   const getGreeting = () => {
@@ -70,13 +78,51 @@ export function SecurityDashboardPage() {
 
   // Calculate shift duration
   const shiftDuration = () => {
-    if (!attendance?.check_in_time) return null;
-    const checkIn = new Date(attendance.check_in_time);
-    const checkOut = attendance?.check_out_time ? new Date(attendance.check_out_time) : new Date();
+    if (!attendance?.checkin_time) return null;
+    const checkIn = new Date(attendance.checkin_time);
+    const checkOut = attendance?.checkout_time ? new Date(attendance.checkout_time) : new Date();
     const diffMs = checkOut.getTime() - checkIn.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     return `${diffHours}j ${diffMinutes}m`;
+  };
+
+  // Get shift info text
+  const getShiftInfo = () => {
+    if (!attendance) return null;
+    const parts: string[] = [];
+    if (attendance.shift) {
+      parts.push(`Shift ${attendance.shift}`);
+    }
+    if (attendance.is_overtime) {
+      parts.push("Lembur");
+    }
+    if (attendance.is_backup) {
+      parts.push("Cadangan");
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+  };
+
+  // Format time with date if needed
+  const formatTime = (timeStr: string | null) => {
+    if (!timeStr) return null;
+    const date = new Date(timeStr);
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
+    
+    if (isToday) {
+      return date.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } else {
+      return date.toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
   };
 
   // Calculate checklist completion percentage
@@ -86,31 +132,83 @@ export function SecurityDashboardPage() {
 
   useEffect(() => {
     const load = async () => {
-      if (!siteId) return;
+      if (!user?.id) return;
 
       setLoading(true);
       try {
-        // Attendance
-        const { data: att } = await getTodayAttendance(siteId);
-        setAttendance(att || null);
+        // Get today's attendance for current user
+        // Get attendance list and find today's record
+        try {
+          const myAttendance = await listMyAttendance("SECURITY");
+          const today = new Date().toISOString().split("T")[0];
+          
+          // Find today's attendance (most recent if multiple)
+          const todayAttendance = myAttendance
+            .filter((att) => {
+              if (!att.checkin_time) return false;
+              const attDate = new Date(att.checkin_time).toISOString().split("T")[0];
+              return attDate === today;
+            })
+            .sort((a, b) => {
+              // Sort by checkin_time descending (most recent first)
+              if (!a.checkin_time || !b.checkin_time) return 0;
+              return new Date(b.checkin_time).getTime() - new Date(a.checkin_time).getTime();
+            })[0]; // Get the most recent one
+          
+          if (todayAttendance) {
+            setAttendance({
+              id: todayAttendance.id,
+              site_id: todayAttendance.site_id,
+              site_name: todayAttendance.site_name,
+              checkin_time: todayAttendance.checkin_time,
+              checkout_time: todayAttendance.checkout_time,
+              status: todayAttendance.status,
+              shift: todayAttendance.shift || null,
+              is_overtime: todayAttendance.is_overtime || false,
+              is_backup: todayAttendance.is_backup || false,
+              is_valid_location: todayAttendance.is_valid_location !== false,
+            });
+            
+            // Update siteId from attendance if available
+            if (todayAttendance.site_id && !siteId) {
+              setSiteId(todayAttendance.site_id);
+            }
+          } else {
+            setAttendance(null);
+          }
+        } catch (err) {
+          console.error("Gagal memuat absensi:", err);
+          setAttendance(null);
+        }
 
-        // Reports summary
+        // Reports summary - get reports for current user (today only)
+        try {
+          const today = new Date().toISOString().split("T")[0];
         const { data: reports } = await api.get(
-          `/security/reports?site_id=${siteId}`
-        );
-        const total = reports?.length ?? 0;
-        const incidents = reports?.filter(
+            `/security/reports`,
+            { params: { from_date: today, to_date: today } }
+          );
+          
+          // Filter reports by current user
+          const userReports = (reports || []).filter((r: any) => r.user_id === user.id);
+          
+          const total = userReports.length;
+          const incidents = userReports.filter(
           (r: any) => r.report_type === "incident"
-        ).length ?? 0;
-        const daily = reports?.filter(
+          ).length;
+          const daily = userReports.filter(
           (r: any) => r.report_type === "daily"
-        ).length ?? 0;
+          ).length;
         setReportsSummary({ total, incidents, daily });
+        } catch (err) {
+          console.error("Failed to load reports:", err);
+          setReportsSummary({ total: 0, incidents: 0, daily: 0 });
+        }
 
         // Checklist summary
         try {
           const { data: checklist } = await getTodayChecklist();
-          if (checklist) {
+          if (checklist && checklist.items) {
             const required = checklist.items.filter((i: any) => i.required === true);
             const completed = required.filter((i: any) => i.status === "COMPLETED");
             setChecklistSummary({
@@ -120,15 +218,13 @@ export function SecurityDashboardPage() {
               status: checklist.status,
             });
           } else {
+            // No checklist for today (user hasn't checked in yet) - this is normal
             setChecklistSummary(null);
           }
         } catch (err: any) {
-          if (err?.response?.status === 404) {
+          // Any other error - log but don't break the dashboard
+            console.error("Gagal memuat checklist:", err);
             setChecklistSummary(null);
-          } else {
-            console.error("Failed to load checklist:", err);
-            setChecklistSummary(null);
-          }
         }
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
@@ -138,7 +234,7 @@ export function SecurityDashboardPage() {
     };
 
     load();
-  }, [siteId]);
+  }, [user?.id]);
 
   const currentSite = sites.find((s) => s.id === siteId);
 
@@ -154,7 +250,7 @@ export function SecurityDashboardPage() {
             <UserRoleBadge />
           </div>
           <p className="text-xs text-slate-400">
-            {currentSite?.name ?? "–"} · {new Date().toLocaleDateString("id-ID")}
+            {attendance?.site_name ?? currentSite?.name ?? "–"} · {new Date().toLocaleDateString("id-ID")}
           </p>
         </div>
 
@@ -166,22 +262,19 @@ export function SecurityDashboardPage() {
                 <div>
                   <div className="text-xs text-slate-400">Check In</div>
                   <div className="mt-1 text-sm font-medium text-slate-50">
-                    {attendance?.check_in_time
-                      ? new Date(attendance.check_in_time).toLocaleTimeString("id-ID", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
+                    {attendance?.checkin_time
+                      ? formatTime(attendance.checkin_time) || "–"
                       : "Belum check in"}
                   </div>
+                  {attendance?.checkin_time && !attendance.is_valid_location && (
+                    <div className="text-[10px] text-red-400 mt-1">⚠ Lokasi tidak valid</div>
+                  )}
                 </div>
-                {attendance?.check_out_time && (
+                {attendance?.checkout_time && (
                   <div>
                     <div className="text-xs text-slate-400">Check Out</div>
                     <div className="mt-1 text-sm font-medium text-slate-50">
-                      {new Date(attendance.check_out_time).toLocaleTimeString("id-ID", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatTime(attendance.checkout_time) || "–"}
                     </div>
                   </div>
                 )}
@@ -193,8 +286,16 @@ export function SecurityDashboardPage() {
                     </div>
                   </div>
                 )}
+                {getShiftInfo() && (
+                  <div>
+                    <div className="text-xs text-slate-400">Info Shift</div>
+                    <div className="mt-1 text-sm font-medium text-slate-50">
+                      {getShiftInfo()}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="mt-3">
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <span
                   className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold uppercase ${
                     hasCheckIn
@@ -210,6 +311,16 @@ export function SecurityDashboardPage() {
                       : t("security.onDuty")
                     : t("security.notCheckedIn")}
                 </span>
+                {attendance?.is_overtime && (
+                  <span className="inline-block px-2 py-1 rounded-full text-[10px] font-medium bg-orange-500/10 text-orange-400">
+                    Lembur
+                  </span>
+                )}
+                {attendance?.is_backup && (
+                  <span className="inline-block px-2 py-1 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-400">
+                    Cadangan
+                  </span>
+                )}
               </div>
             </div>
             {!hasCheckIn && (
@@ -218,7 +329,7 @@ export function SecurityDashboardPage() {
                 className="mt-2 inline-flex items-center gap-2 justify-center rounded-xl bg-blue-500 hover:bg-blue-600 px-4 py-2 text-xs font-medium text-white md:mt-0"
               >
                 <span className="w-7 h-7">{AppIcons.qrAttendance({ className: "w-7 h-7" })}</span>
-                QR Attendance
+                QR Absensi
               </button>
             )}
           </div>
@@ -243,7 +354,7 @@ export function SecurityDashboardPage() {
               subtitle={
                 checklistSummary
                   ? `${checklistSummary.completed}/${checklistSummary.total} selesai`
-                  : "No checklist"
+                  : "Tidak ada checklist"
               }
               variant={checklistSummary?.status === "COMPLETED" ? "success" : checklistSummary?.status === "INCOMPLETE" ? "danger" : "default"}
             />

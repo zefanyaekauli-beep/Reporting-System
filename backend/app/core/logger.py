@@ -20,6 +20,10 @@ logging.basicConfig(
     ],
 )
 
+# Set specific loggers to DEBUG for watermark debugging
+logging.getLogger("app.services.watermark_service").setLevel(logging.DEBUG)
+logging.getLogger("app.services.file_storage").setLevel(logging.DEBUG)
+
 # Create logger instances
 logger = logging.getLogger("verolux")
 api_logger = logging.getLogger("verolux.api")

@@ -20,8 +20,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Helper function to check if table exists
+    from sqlalchemy import inspect
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_tables = inspector.get_table_names()
+    
     # ========== CCTV Cameras ==========
-    op.create_table('cctv_cameras',
+    if 'cctv_cameras' not in existing_tables:
+        op.create_table('cctv_cameras',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
         sa.Column('site_id', sa.Integer(), nullable=False),
@@ -49,7 +56,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_cctv_cameras_site_id'), 'cctv_cameras', ['site_id'], unique=False)
 
     # ========== Employees ==========
-    op.create_table('employees',
+    if 'employees' not in existing_tables:
+        op.create_table('employees',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=True),
@@ -92,7 +100,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_employees_site_id'), 'employees', ['site_id'], unique=False)
 
     # ========== Employee Contracts ==========
-    op.create_table('employee_contracts',
+    if 'employee_contracts' not in existing_tables:
+        op.create_table('employee_contracts',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('employee_id', sa.Integer(), nullable=False),
         sa.Column('contract_type', sa.Enum('PERMANENT', 'CONTRACT', 'INTERNSHIP', 'PART_TIME', name='contracttype'), nullable=False),
@@ -122,7 +131,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_employee_contracts_contract_number'), 'employee_contracts', ['contract_number'], unique=True)
 
     # ========== Master Data ==========
-    op.create_table('master_data',
+    if 'master_data' not in existing_tables:
+        op.create_table('master_data',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=True),
         sa.Column('category', sa.String(length=64), nullable=False),
@@ -153,7 +163,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_master_data_parent_id'), 'master_data', ['parent_id'], unique=False)
 
     # ========== Patrol Targets ==========
-    op.create_table('patrol_targets',
+    if 'patrol_targets' not in existing_tables:
+        op.create_table('patrol_targets',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
         sa.Column('site_id', sa.Integer(), nullable=False),
@@ -185,7 +196,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_patrol_targets_status'), 'patrol_targets', ['status'], unique=False)
 
     # ========== Patrol Teams ==========
-    op.create_table('patrol_teams',
+    if 'patrol_teams' not in existing_tables:
+        op.create_table('patrol_teams',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
         sa.Column('site_id', sa.Integer(), nullable=False),
@@ -211,7 +223,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_patrol_teams_is_active'), 'patrol_teams', ['is_active'], unique=False)
 
     # ========== Visitors ==========
-    op.create_table('visitors',
+    if 'visitors' not in existing_tables:
+        op.create_table('visitors',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
         sa.Column('site_id', sa.Integer(), nullable=False),
@@ -255,7 +268,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_visitors_status'), 'visitors', ['status'], unique=False)
 
     # ========== Trainings ==========
-    op.create_table('trainings',
+    if 'trainings' not in existing_tables:
+        op.create_table('trainings',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
         sa.Column('site_id', sa.Integer(), nullable=True),
@@ -292,7 +306,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_trainings_division'), 'trainings', ['division'], unique=False)
 
     # ========== Training Attendances ==========
-    op.create_table('training_attendances',
+    if 'training_attendances' not in existing_tables:
+        op.create_table('training_attendances',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('training_id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
@@ -318,7 +333,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_training_attendances_user_id'), 'training_attendances', ['user_id'], unique=False)
 
     # ========== Development Plans ==========
-    op.create_table('development_plans',
+    if 'development_plans' not in existing_tables:
+        op.create_table('development_plans',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
@@ -349,7 +365,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_development_plans_status'), 'development_plans', ['status'], unique=False)
 
     # ========== Documents ==========
-    op.create_table('documents',
+    if 'documents' not in existing_tables:
+        op.create_table('documents',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=True),
         sa.Column('title', sa.String(length=255), nullable=False),
@@ -390,7 +407,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_documents_document_number'), 'documents', ['document_number'], unique=True)
 
     # ========== Document Versions ==========
-    op.create_table('document_versions',
+    if 'document_versions' not in existing_tables:
+        op.create_table('document_versions',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('document_id', sa.Integer(), nullable=False),
         sa.Column('version', sa.String(length=32), nullable=False),
@@ -408,7 +426,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_document_versions_document_id'), 'document_versions', ['document_id'], unique=False)
 
     # ========== Sync Queue ==========
-    op.create_table('sync_queue',
+    if 'sync_queue' not in existing_tables:
+        op.create_table('sync_queue',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
@@ -442,7 +461,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_sync_queue_created_at'), 'sync_queue', ['created_at'], unique=False)
 
     # ========== Payrolls ==========
-    op.create_table('payrolls',
+    if 'payrolls' not in existing_tables:
+        op.create_table('payrolls',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
@@ -487,7 +507,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_payrolls_invoice_number'), 'payrolls', ['invoice_number'], unique=True)
 
     # ========== Payments ==========
-    op.create_table('payments',
+    if 'payments' not in existing_tables:
+        op.create_table('payments',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('payroll_id', sa.Integer(), nullable=False),
         sa.Column('payment_method', sa.Enum('BANK_TRANSFER', 'CASH', 'E_WALLET', 'PAYMENT_GATEWAY', name='paymentmethod'), nullable=False),
@@ -515,7 +536,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_payments_transaction_id'), 'payments', ['transaction_id'], unique=True)
 
     # ========== GPS Tracks ==========
-    op.create_table('gps_tracks',
+    if 'gps_tracks' not in existing_tables:
+        op.create_table('gps_tracks',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
@@ -546,45 +568,98 @@ def upgrade() -> None:
 
     # ========== Enhance existing tables ==========
     
+    # Helper function to check if column exists
+    def column_exists(table_name, column_name):
+        try:
+            columns = [col['name'] for col in inspector.get_columns(table_name)]
+            return column_name in columns
+        except:
+            return False
+    
     # Add new columns to security_reports
-    op.add_column('security_reports', sa.Column('incident_category', sa.String(length=64), nullable=True))
-    op.add_column('security_reports', sa.Column('incident_level', sa.String(length=32), nullable=True))
-    op.add_column('security_reports', sa.Column('incident_severity_score', sa.Integer(), nullable=True))
-    op.add_column('security_reports', sa.Column('incident_details', sa.Text(), nullable=True))
-    op.add_column('security_reports', sa.Column('perpetrator_name', sa.String(length=255), nullable=True))
-    op.add_column('security_reports', sa.Column('perpetrator_type', sa.String(length=32), nullable=True))
-    op.add_column('security_reports', sa.Column('perpetrator_details', sa.Text(), nullable=True))
-    op.add_column('security_reports', sa.Column('reported_at', sa.DateTime(), nullable=True))
-    op.create_index(op.f('ix_security_reports_incident_category'), 'security_reports', ['incident_category'], unique=False)
-    op.create_index(op.f('ix_security_reports_incident_level'), 'security_reports', ['incident_level'], unique=False)
-    op.create_index(op.f('ix_security_reports_reported_at'), 'security_reports', ['reported_at'], unique=False)
+    if 'security_reports' in existing_tables:
+        if not column_exists('security_reports', 'incident_category'):
+            op.add_column('security_reports', sa.Column('incident_category', sa.String(length=64), nullable=True))
+        if not column_exists('security_reports', 'incident_level'):
+            op.add_column('security_reports', sa.Column('incident_level', sa.String(length=32), nullable=True))
+        if not column_exists('security_reports', 'incident_severity_score'):
+            op.add_column('security_reports', sa.Column('incident_severity_score', sa.Integer(), nullable=True))
+        if not column_exists('security_reports', 'incident_details'):
+            op.add_column('security_reports', sa.Column('incident_details', sa.Text(), nullable=True))
+        if not column_exists('security_reports', 'perpetrator_name'):
+            op.add_column('security_reports', sa.Column('perpetrator_name', sa.String(length=255), nullable=True))
+        if not column_exists('security_reports', 'perpetrator_type'):
+            op.add_column('security_reports', sa.Column('perpetrator_type', sa.String(length=32), nullable=True))
+        if not column_exists('security_reports', 'perpetrator_details'):
+            op.add_column('security_reports', sa.Column('perpetrator_details', sa.Text(), nullable=True))
+        if not column_exists('security_reports', 'reported_at'):
+            op.add_column('security_reports', sa.Column('reported_at', sa.DateTime(), nullable=True))
+        # Create indexes if they don't exist
+        try:
+            op.create_index(op.f('ix_security_reports_incident_category'), 'security_reports', ['incident_category'], unique=False)
+        except:
+            pass
+        try:
+            op.create_index(op.f('ix_security_reports_incident_level'), 'security_reports', ['incident_level'], unique=False)
+        except:
+            pass
+        try:
+            op.create_index(op.f('ix_security_reports_reported_at'), 'security_reports', ['reported_at'], unique=False)
+        except:
+            pass
 
     # Add new columns to security_patrol_logs
-    op.add_column('security_patrol_logs', sa.Column('patrol_type', sa.String(length=32), nullable=True))
-    op.add_column('security_patrol_logs', sa.Column('distance_covered', sa.Float(), nullable=True))
-    op.add_column('security_patrol_logs', sa.Column('steps_count', sa.Integer(), nullable=True))
-    op.add_column('security_patrol_logs', sa.Column('route_id', sa.Integer(), nullable=True))
-    op.add_column('security_patrol_logs', sa.Column('team_id', sa.Integer(), nullable=True))
-    op.add_column('security_patrol_logs', sa.Column('gps_track_id', sa.Integer(), nullable=True))
-    op.create_index(op.f('ix_security_patrol_logs_route_id'), 'security_patrol_logs', ['route_id'], unique=False)
-    op.create_index(op.f('ix_security_patrol_logs_team_id'), 'security_patrol_logs', ['team_id'], unique=False)
+    if 'security_patrol_logs' in existing_tables:
+        if not column_exists('security_patrol_logs', 'patrol_type'):
+            op.add_column('security_patrol_logs', sa.Column('patrol_type', sa.String(length=32), nullable=True))
+        if not column_exists('security_patrol_logs', 'distance_covered'):
+            op.add_column('security_patrol_logs', sa.Column('distance_covered', sa.Float(), nullable=True))
+        if not column_exists('security_patrol_logs', 'steps_count'):
+            op.add_column('security_patrol_logs', sa.Column('steps_count', sa.Integer(), nullable=True))
+        if not column_exists('security_patrol_logs', 'route_id'):
+            op.add_column('security_patrol_logs', sa.Column('route_id', sa.Integer(), nullable=True))
+        if not column_exists('security_patrol_logs', 'team_id'):
+            op.add_column('security_patrol_logs', sa.Column('team_id', sa.Integer(), nullable=True))
+        if not column_exists('security_patrol_logs', 'gps_track_id'):
+            op.add_column('security_patrol_logs', sa.Column('gps_track_id', sa.Integer(), nullable=True))
+        try:
+            op.create_index(op.f('ix_security_patrol_logs_route_id'), 'security_patrol_logs', ['route_id'], unique=False)
+        except:
+            pass
+        try:
+            op.create_index(op.f('ix_security_patrol_logs_team_id'), 'security_patrol_logs', ['team_id'], unique=False)
+        except:
+            pass
 
     # Add new columns to shifts
-    op.add_column('shifts', sa.Column('scheduled_start_time', sa.DateTime(), nullable=True))
-    op.add_column('shifts', sa.Column('scheduled_end_time', sa.DateTime(), nullable=True))
-    op.add_column('shifts', sa.Column('actual_start_time', sa.DateTime(), nullable=True))
-    op.add_column('shifts', sa.Column('actual_end_time', sa.DateTime(), nullable=True))
-    op.add_column('shifts', sa.Column('overtime_hours', sa.Integer(), nullable=False, server_default='0'))
-    op.add_column('shifts', sa.Column('break_duration_minutes', sa.Integer(), nullable=False, server_default='0'))
-    op.add_column('shifts', sa.Column('shift_category', sa.String(length=32), nullable=True))
+    if 'shifts' in existing_tables:
+        if not column_exists('shifts', 'scheduled_start_time'):
+            op.add_column('shifts', sa.Column('scheduled_start_time', sa.DateTime(), nullable=True))
+        if not column_exists('shifts', 'scheduled_end_time'):
+            op.add_column('shifts', sa.Column('scheduled_end_time', sa.DateTime(), nullable=True))
+        if not column_exists('shifts', 'actual_start_time'):
+            op.add_column('shifts', sa.Column('actual_start_time', sa.DateTime(), nullable=True))
+        if not column_exists('shifts', 'actual_end_time'):
+            op.add_column('shifts', sa.Column('actual_end_time', sa.DateTime(), nullable=True))
+        if not column_exists('shifts', 'overtime_hours'):
+            op.add_column('shifts', sa.Column('overtime_hours', sa.Integer(), nullable=False, server_default='0'))
+        if not column_exists('shifts', 'break_duration_minutes'):
+            op.add_column('shifts', sa.Column('break_duration_minutes', sa.Integer(), nullable=False, server_default='0'))
+        if not column_exists('shifts', 'shift_category'):
+            op.add_column('shifts', sa.Column('shift_category', sa.String(length=32), nullable=True))
 
     # Add new columns to shift_handovers
-    op.add_column('shift_handovers', sa.Column('handover_type', sa.String(length=32), nullable=True))
-    op.add_column('shift_handovers', sa.Column('priority_items', sa.JSON(), nullable=True))
-    op.add_column('shift_handovers', sa.Column('pending_tasks', sa.JSON(), nullable=True))
+    if 'shift_handovers' in existing_tables:
+        if not column_exists('shift_handovers', 'handover_type'):
+            op.add_column('shift_handovers', sa.Column('handover_type', sa.String(length=32), nullable=True))
+        if not column_exists('shift_handovers', 'priority_items'):
+            op.add_column('shift_handovers', sa.Column('priority_items', sa.JSON(), nullable=True))
+        if not column_exists('shift_handovers', 'pending_tasks'):
+            op.add_column('shift_handovers', sa.Column('pending_tasks', sa.JSON(), nullable=True))
     
     # ========== RBAC Tables ==========
-    op.create_table('permissions',
+    if 'permissions' not in existing_tables:
+        op.create_table('permissions',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('name', sa.String(length=128), nullable=False),
         sa.Column('resource', sa.String(length=64), nullable=False),
@@ -600,7 +675,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_permissions_resource'), 'permissions', ['resource'], unique=False)
     op.create_index(op.f('ix_permissions_action'), 'permissions', ['action'], unique=False)
     
-    op.create_table('roles',
+    if 'roles' not in existing_tables:
+        op.create_table('roles',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('name', sa.String(length=64), nullable=False),
         sa.Column('display_name', sa.String(length=128), nullable=True),
@@ -615,7 +691,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_roles_id'), 'roles', ['id'], unique=False)
     op.create_index(op.f('ix_roles_name'), 'roles', ['name'], unique=True)
     
-    op.create_table('user_permissions',
+    if 'user_permissions' not in existing_tables:
+        op.create_table('user_permissions',
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('permission_id', sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(['permission_id'], ['permissions.id'], ),
@@ -623,7 +700,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('user_id', 'permission_id')
     )
     
-    op.create_table('role_permissions',
+    if 'role_permissions' not in existing_tables:
+        op.create_table('role_permissions',
         sa.Column('role_id', sa.Integer(), nullable=False),
         sa.Column('permission_id', sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(['permission_id'], ['permissions.id'], ),
@@ -631,7 +709,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('role_id', 'permission_id')
     )
     
-    op.create_table('audit_logs',
+    if 'audit_logs' not in existing_tables:
+        op.create_table('audit_logs',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('company_id', sa.Integer(), nullable=True),
@@ -655,13 +734,25 @@ def upgrade() -> None:
     op.create_index(op.f('ix_audit_logs_created_at'), 'audit_logs', ['created_at'], unique=False)
     
     # Add role_id to users if not exists
-    try:
-        op.add_column('users', sa.Column('role_id', sa.Integer(), nullable=True))
-        op.create_foreign_key('fk_users_role', 'users', 'roles', ['role_id'], ['id'])
-        op.create_index(op.f('ix_users_role_id'), 'users', ['role_id'], unique=False)
-    except Exception:
-        # Column might already exist
-        pass
+    if 'users' in existing_tables and 'roles' in existing_tables:
+        if not column_exists('users', 'role_id'):
+            try:
+                op.add_column('users', sa.Column('role_id', sa.Integer(), nullable=True))
+                op.create_foreign_key('fk_users_role', 'users', 'roles', ['role_id'], ['id'])
+                op.create_index(op.f('ix_users_role_id'), 'users', ['role_id'], unique=False)
+            except Exception:
+                # Column might already exist or constraint already exists
+                pass
+        else:
+            # Column exists, but check if foreign key exists
+            try:
+                op.create_foreign_key('fk_users_role', 'users', 'roles', ['role_id'], ['id'])
+            except:
+                pass
+            try:
+                op.create_index(op.f('ix_users_role_id'), 'users', ['role_id'], unique=False)
+            except:
+                pass
 
 
 def downgrade() -> None:

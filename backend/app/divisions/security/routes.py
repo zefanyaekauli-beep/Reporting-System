@@ -1,6 +1,6 @@
 # backend/app/divisions/security/routes.py
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 from fastapi import (
     APIRouter,
@@ -59,15 +59,26 @@ async def security_check_in(
     if existing and existing.check_in_time is not None:
         raise HTTPException(status_code=400, detail="Sudah check in hari ini")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     photo_path = None
 
     if photo:
-        filename = f"{int(now.timestamp())}_{photo.filename}"
-        photo_path = f"{SECURITY_ATTENDANCE_DIR}/{filename}"
-        with open(photo_path, "wb") as out:
-            content = await photo.read()
-            out.write(content)
+        # Get site and user info for watermark
+        from app.models.site import Site
+        from app.models.user import User
+        site = db.query(Site).filter(Site.id == site_id).first()
+        user = db.query(User).filter(User.id == current_user.get("id")).first()
+        
+        from app.services.file_storage import save_attendance_photo
+        await photo.seek(0)
+        photo_path = await save_attendance_photo(
+            photo,
+            prefix="checkin",
+            location=location,
+            site_name=site.name if site else None,
+            user_name=user.username if user else None,
+            additional_info={"Type": "Security Attendance"}
+        )
 
     if existing is None:
         attendance = models.SecurityAttendance(
@@ -162,15 +173,26 @@ async def security_check_out(
     if attendance.check_out_time is not None:
         raise HTTPException(status_code=400, detail="Sudah check out hari ini")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     photo_path = None
 
     if photo:
-        filename = f"{int(now.timestamp())}_{photo.filename}"
-        photo_path = f"{SECURITY_ATTENDANCE_DIR}/{filename}"
-        with open(photo_path, "wb") as out:
-            content = await photo.read()
-            out.write(content)
+        # Get site and user info for watermark
+        from app.models.site import Site
+        from app.models.user import User
+        site = db.query(Site).filter(Site.id == site_id).first()
+        user = db.query(User).filter(User.id == current_user.get("id")).first()
+        
+        from app.services.file_storage import save_attendance_photo
+        await photo.seek(0)
+        photo_path = await save_attendance_photo(
+            photo,
+            prefix="checkout",
+            location=location,
+            site_name=site.name if site else None,
+            user_name=user.username if user else None,
+            additional_info={"Type": "Security Attendance"}
+        )
 
     # Finalize checklist on check-out
     checklist = (
@@ -275,18 +297,28 @@ async def create_security_report(
         # TODO: implement proper file storage (GCS, S3, local, etc.)
         evidence_paths: List[str] = []
 
+        # Get site and user info for watermark
+        from app.models.site import Site
+        from app.models.user import User
+        site = db.query(Site).filter(Site.id == site_id).first()
+        user = db.query(User).filter(User.id == user_id).first()
+
         if evidence_files:
             try:
+                from app.services.evidence_storage import save_evidence_file
                 for f in evidence_files:
-                    # VERY naive: save to local "media/security_reports"
-                    # Replace with your storage strategy.
-                    filename = f"{int(datetime.utcnow().timestamp())}_{f.filename}"
-                    path = f"{SECURITY_REPORTS_DIR}/{filename}"
-                    with open(path, "wb") as out:
-                        content = await f.read()
-                        out.write(content)
+                    # Save evidence file with watermark
+                    path = await save_evidence_file(
+                        f,
+                        upload_dir=SECURITY_REPORTS_DIR,
+                        site_name=site.name if site else None,
+                        user_name=user.username if user else None,
+                        location=location_text,
+                        report_type=report_type.strip(),
+                        additional_info={"Title": title[:50] if title else None, "Severity": severity}
+                    )
                     evidence_paths.append(path)
-                    api_logger.info(f"Saved evidence file: {path}")
+                    api_logger.info(f"Saved evidence file with watermark: {path}")
             except Exception as file_err:
                 # Log error without trying to serialize UploadFile objects
                 error_msg = str(file_err)
@@ -563,13 +595,24 @@ async def create_patrol_log(
 ):
     photo_path = None
     if main_photo:
-        # TODO: replace with proper storage
-        filename = f"{int(datetime.utcnow().timestamp())}_{main_photo.filename}"
-        path = f"{SECURITY_PATROL_DIR}/{filename}"
-        with open(path, "wb") as out:
-            content = await main_photo.read()
-            out.write(content)
-        photo_path = path
+        # Get site and user info for watermark
+        from app.models.site import Site
+        from app.models.user import User
+        site = db.query(Site).filter(Site.id == site_id).first()
+        user = db.query(User).filter(User.id == current_user.get("id")).first()
+        
+        from app.services.evidence_storage import save_evidence_file
+        location_str = f"Area: {area_text}" if area_text else None
+        await main_photo.seek(0)
+        photo_path = await save_evidence_file(
+            main_photo,
+            upload_dir=SECURITY_PATROL_DIR,
+            location=location_str,
+            site_name=site.name if site else None,
+            user_name=user.username if user else None,
+            report_type="Patrol",
+            additional_info={"Start Time": start_time.isoformat() if start_time else None, "Patrol Type": patrol_type}
+        )
 
     log = models.SecurityPatrolLog(
         company_id=current_user.get("company_id", 1),
@@ -1019,9 +1062,11 @@ def get_today_checklist(
                 f.write(json.dumps({"location": "security/routes.py:502", "message": "No checklist found, raising 404", "data": {"today": str(today)}, "timestamp": int(time.time() * 1000), "sessionId": "debug-session", "runId": "checklist-debug", "hypothesisId": "D"}) + "\n")
         except: pass
         # #endregion
+        # Return 404 - this is expected behavior when user hasn't checked in yet
+        # Frontend should handle this gracefully
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND,
-            detail="No checklist for today",
+            detail="No checklist for today. Please check in first to create a checklist.",
         )
     
     # #region agent log

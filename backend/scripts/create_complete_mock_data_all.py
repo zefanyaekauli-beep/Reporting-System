@@ -10,7 +10,7 @@ Create COMPLETE mock data for ALL functions:
 import sys
 import os
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import random
 
 # Add parent directory to path
@@ -27,7 +27,7 @@ from app.models.site import Site
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.attendance_correction import AttendanceCorrection, CorrectionType, CorrectionStatus
 from app.models.inspect_point import InspectPoint
-from app.models.leave_request import LeaveRequest, LeaveStatus, LeaveType
+from app.models.leave_request import LeaveRequest, RequestStatus, RequestType
 
 # Security models
 from app.divisions.security.models import (
@@ -265,11 +265,11 @@ def create_complete_mock_data():
             leave = LeaveRequest(
                 company_id=company.id,
                 user_id=user.id,
-                leave_type=random.choice(list(LeaveType)),
+                request_type=random.choice(list(RequestType)),
                 start_date=date.today() + timedelta(days=random.randint(1, 30)),
                 end_date=date.today() + timedelta(days=random.randint(31, 60)),
                 reason=f"Leave reason: {random.choice(['Sick', 'Family', 'Personal', 'Holiday'])}",
-                status=random.choice(list(LeaveStatus)),
+                status=random.choice(list(RequestStatus)),
                 created_at=datetime.now() - timedelta(days=random.randint(1, 7)),
             )
             db.add(leave)
@@ -319,11 +319,12 @@ def create_complete_mock_data():
             report = SecurityReport(
                 company_id=company.id,
                 site_id=site.id,
-                created_by=user.id,
+                user_id=user.id,
+                division="SECURITY",
                 report_type=random.choice(["incident", "daily", "patrol"]),
                 title=f"Report {i+1}: {random.choice(['Incident', 'Daily Activity', 'Patrol'])}",
                 description=f"Description for report {i+1}",
-                location=f"Location {i+1}",
+                location_text=f"Location {i+1}",
                 created_at=datetime.now() - timedelta(days=random.randint(0, 14)),
             )
             db.add(report)
@@ -347,7 +348,7 @@ def create_complete_mock_data():
                 user_id=user.id,
                 start_time=start_time,
                 end_time=end_time,
-                route_name=f"Route {random.randint(1, 5)}",
+                area_text=f"Route {random.randint(1, 5)}",
                 notes=f"Patrol notes {i+1}",
             )
             db.add(patrol)
@@ -400,11 +401,13 @@ def create_complete_mock_data():
                 report = SecurityReport(
                     company_id=company.id,
                     site_id=site.id,
-                    created_by=user.id,
+                    user_id=user.id,
+                    division="CLEANING",
                     report_type=random.choice(["incident", "daily", "inspection"]),
                     title=f"Cleaning Report {i+1}",
                     description=f"Cleaning report description {i+1} - Zone: {zone.name if zone else 'N/A'}",
-                    location=f"Zone: {zone.name if zone else 'General'}" if zone else None,
+                    location_text=f"Zone: {zone.name if zone else 'General'}" if zone else None,
+                    zone_id=zone.id if zone else None,
                     created_at=datetime.now() - timedelta(days=random.randint(0, 14)),
                 )
                 db.add(report)
@@ -445,11 +448,12 @@ def create_complete_mock_data():
                 report = SecurityReport(
                     company_id=company.id,
                     site_id=site.id,
-                    created_by=user.id,
+                    user_id=user.id,
+                    division="PARKING",
                     report_type=random.choice(["incident", "daily", "violation"]),
                     title=f"Parking Report {i+1}",
                     description=f"Parking report description {i+1}",
-                    location=f"Parking Area {random.choice(['A', 'B', 'C'])}",
+                    location_text=f"Parking Area {random.choice(['A', 'B', 'C'])}",
                     created_at=datetime.now() - timedelta(days=random.randint(0, 14)),
                 )
                 db.add(report)
@@ -481,13 +485,13 @@ def create_complete_mock_data():
                 ("Check visitor log", "Review visitor entries", True),
             ]
             
-            for title, desc, required in items_data:
+            for idx, (title, desc, required) in enumerate(items_data):
                 item = ChecklistTemplateItem(
                     template_id=template.id,
                     title=title,
                     description=desc,
                     required=required,
-                    order_index=len(items_data) - items_data.index((title, desc, required)),
+                    order=idx + 1,
                 )
                 db.add(item)
             
@@ -505,6 +509,7 @@ def create_complete_mock_data():
                 site_id=site.id,
                 user_id=user.id,
                 template_id=template.id,
+                shift_date=date.today() - timedelta(days=random.randint(0, 7)),
                 status=random.choice(list(ChecklistStatus)),
                 created_at=datetime.now() - timedelta(days=random.randint(0, 7)),
             )
@@ -526,7 +531,7 @@ def create_complete_mock_data():
                     description=template_item.description,
                     required=template_item.required,
                     status=random.choice(list(ChecklistItemStatus)),
-                    order_index=template_item.order_index,
+                    order=template_item.order,
                 )
                 db.add(item)
         

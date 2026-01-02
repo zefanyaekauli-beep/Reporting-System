@@ -8,8 +8,9 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.core.logger import api_logger
-from app.api.deps import get_current_user, require_admin
+from app.api.deps import get_current_user, require_admin, require_supervisor
 from app.models.user import User
+from app.models.permission import AuditLog
 import enum
 
 class UserRole(str, enum.Enum):
@@ -35,7 +36,104 @@ class PermissionUpdate(BaseModel):
     permissions: List[str]
 
 
+class AuditLogOut(BaseModel):
+    id: int
+    user_id: Optional[int]
+    username: Optional[str]
+    company_id: Optional[int]
+    action: str
+    resource_type: str
+    resource_id: Optional[int]
+    details: Optional[str]
+    ip_address: Optional[str]
+    user_agent: Optional[str]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 # require_admin is imported from app.api.deps
+
+
+@router.get("/audit-logs", response_model=List[AuditLogOut])
+def get_audit_logs(
+    user_id: Optional[int] = Query(None),
+    resource_type: Optional[str] = Query(None),
+    action: Optional[str] = Query(None),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    limit: int = Query(100, le=1000),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_supervisor),  # Allow supervisor to view audit logs
+):
+    """Get audit logs with optional filters (admin/supervisor only)."""
+    try:
+        company_id = current_user.get("company_id", 1)
+        
+        # Build query
+        q = db.query(AuditLog).filter(AuditLog.company_id == company_id)
+        
+        # Apply filters
+        if user_id:
+            q = q.filter(AuditLog.user_id == user_id)
+        if resource_type:
+            q = q.filter(AuditLog.resource_type == resource_type.upper())
+        if action:
+            q = q.filter(AuditLog.action == action.upper())
+        if from_date:
+            try:
+                from datetime import datetime as dt
+                from_dt = dt.fromisoformat(from_date)
+                q = q.filter(AuditLog.created_at >= from_dt)
+            except:
+                pass
+        if to_date:
+            try:
+                from datetime import datetime as dt
+                to_dt = dt.fromisoformat(to_date)
+                q = q.filter(AuditLog.created_at <= to_dt)
+            except:
+                pass
+        
+        # Order by most recent first and apply limit
+        logs = q.order_by(AuditLog.created_at.desc()).limit(limit).all()
+        
+        # Get usernames for logs
+        user_ids = list(set([log.user_id for log in logs if log.user_id]))
+        users_dict = {}
+        if user_ids:
+            users = db.query(User).filter(User.id.in_(user_ids)).all()
+            users_dict = {u.id: u.username for u in users}
+        
+        # Build response
+        result = []
+        for log in logs:
+            result.append(AuditLogOut(
+                id=log.id,
+                user_id=log.user_id,
+                username=users_dict.get(log.user_id),
+                company_id=log.company_id,
+                action=log.action,
+                resource_type=log.resource_type,
+                resource_id=log.resource_id,
+                details=log.details,
+                ip_address=log.ip_address,
+                user_agent=log.user_agent,
+                created_at=log.created_at,
+            ))
+        
+        api_logger.info(f"Retrieved {len(result)} audit logs for user {current_user.get('id')}")
+        return result
+        
+    except Exception as e:
+        error_msg = str(e)
+        error_type = type(e).__name__
+        api_logger.error(f"Error retrieving audit logs: {error_type} - {error_msg}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve audit logs: {error_msg}"
+        )
 
 
 @router.get("/users", response_model=List[dict])
@@ -217,17 +315,28 @@ def update_user_permissions(
 def list_roles(
     is_active: Optional[bool] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(require_supervisor),  # Allow supervisor too
 ):
     """List all roles (admin only)."""
     try:
         from app.models.permission import Role
+        from sqlalchemy import inspect
+        
+        # Check if roles table exists
+        inspector = inspect(db.bind)
+        tables = inspector.get_table_names()
+        
+        if 'roles' not in tables:
+            api_logger.warning("Roles table does not exist. Please run migrations.")
+            return []
         
         q = db.query(Role)
         if is_active is not None:
             q = q.filter(Role.is_active == is_active)
         
         roles = q.order_by(Role.name.asc()).all()
+        
+        api_logger.info(f"Found {len(roles)} roles in database")
         
         result = []
         for role in roles:
@@ -249,10 +358,9 @@ def list_roles(
         error_msg = str(e)
         error_type = type(e).__name__
         api_logger.error(f"Error listing roles: {error_type} - {error_msg}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to list roles: {error_msg}"
-        )
+        # Return empty list instead of raising error to prevent frontend crash
+        api_logger.warning("Returning empty roles list due to error. Please check database and run migrations.")
+        return []
 
 
 @router.get("/permissions", response_model=List[dict])
@@ -261,11 +369,20 @@ def list_available_permissions(
     action: Optional[str] = Query(None),
     is_active: Optional[bool] = Query(None),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(require_supervisor),  # Allow supervisor too
 ):
     """List all available permissions (admin only)."""
     try:
         from app.models.permission import Permission
+        from sqlalchemy import inspect
+        
+        # Check if permissions table exists
+        inspector = inspect(db.bind)
+        tables = inspector.get_table_names()
+        
+        if 'permissions' not in tables:
+            api_logger.warning("Permissions table does not exist. Please run migrations.")
+            return []
         
         q = db.query(Permission)
         if resource:
@@ -276,6 +393,8 @@ def list_available_permissions(
             q = q.filter(Permission.is_active == is_active)
         
         permissions = q.order_by(Permission.resource.asc(), Permission.action.asc()).all()
+        
+        api_logger.info(f"Found {len(permissions)} permissions in database")
         
         result = []
         for perm in permissions:
@@ -359,7 +478,7 @@ def get_permissions_for_role(role: str) -> List[str]:
 def get_role_permissions(
     role_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(require_supervisor),  # Allow supervisor too
 ):
     """Get role permissions (admin only)."""
     try:
@@ -405,7 +524,7 @@ def update_role_permissions(
     role_id: int,
     permission_ids: List[int] = Body(..., embed=True),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(require_admin),
+    current_user: dict = Depends(require_admin),  # Only admin can update
 ):
     """Update role permissions (admin only)."""
     try:

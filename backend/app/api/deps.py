@@ -78,7 +78,23 @@ def get_current_user(
 def require_supervisor(current_user: dict = Depends(get_current_user)):
     """Dependency to require supervisor or admin role"""
     role = current_user.get("role", "").lower()
-    if role not in ("supervisor", "admin"):
+    # Accept supervisor, admin, or super_admin
+    if role not in ("supervisor", "admin", "super_admin"):
+        # Also check if user has SUPERVISOR or ADMIN role via RBAC role_id
+        user_id = current_user.get("id")
+        if user_id:
+            db = next(get_db())
+            try:
+                user = db.query(User).filter(User.id == user_id).first()
+                if user and user.role_obj:
+                    role_name = user.role_obj.name.upper()
+                    if role_name in ("SUPERVISOR", "ADMIN", "SUPER_ADMIN"):
+                        return current_user
+            except Exception:
+                pass
+            finally:
+                db.close()
+        
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Supervisor access required",
@@ -88,7 +104,21 @@ def require_supervisor(current_user: dict = Depends(get_current_user)):
 def require_admin(current_user: dict = Depends(get_current_user)):
     """Dependency to require admin role"""
     role = current_user.get("role", "").lower()
-    if role != "admin":
+    # Accept both "admin" and "ADMIN" (case-insensitive)
+    if role not in ("admin", "super_admin"):
+        # Also check if user has ADMIN role via RBAC role_id
+        user_id = current_user.get("id")
+        if user_id:
+            db = next(get_db())
+            try:
+                user = db.query(User).filter(User.id == user_id).first()
+                if user and user.role_obj and user.role_obj.name.upper() in ("ADMIN", "SUPER_ADMIN"):
+                    return current_user
+            except Exception:
+                pass
+            finally:
+                db.close()
+        
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",

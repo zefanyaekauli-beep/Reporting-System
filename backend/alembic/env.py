@@ -18,7 +18,7 @@ from app.models.base import Base
 from app.models import user, company, site, attendance  # noqa: F401
 from app.models import announcement  # noqa: F401
 from app.models import inspect_point, attendance_correction, shift, leave_request, device  # noqa: F401
-from app.models import cctv, employee, master_data, patrol_target, patrol_team, visitor  # noqa: F401
+from app.models import cctv, employee, master_data, patrol_target, patrol_team, visitor, asset  # noqa: F401
 from app.models import training, document, sync_queue, payroll, gps_track  # noqa: F401
 from app.divisions.security import models as security_models  # noqa: F401
 from app.divisions.cleaning import models as cleaning_models  # noqa: F401
